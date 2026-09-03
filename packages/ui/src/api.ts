@@ -159,6 +159,24 @@ export interface BackupCheck {
   problems: string[];
 }
 
+export interface DashboardSummary {
+  activeLoans: number;
+  overdue: number;
+  returnedToday: number;
+  checkedOutToday: number;
+  titles: number;
+  copies: number;
+  copiesOnShelf: number;
+  students: number;
+  generatedAt: string;
+}
+
+export interface IntakeResult {
+  copy: BookCopy;
+  book: Book;
+  createdTitle: boolean;
+}
+
 export type Role = 'admin' | 'librarian' | 'read_only';
 
 export interface StaffUser {
@@ -384,6 +402,10 @@ export const api = {
   commitImport: (publicId: string) =>
     request<CommitReport>(`/api/v1/imports/${publicId}/commit`, { method: 'POST' }),
 
+  dashboard: () => request<DashboardSummary>('/api/v1/dashboard'),
+  intake: (body: Record<string, unknown>) =>
+    request<IntakeResult>('/api/v1/intake', { method: 'POST', body: JSON.stringify(body) }),
+
   listBackups: () => request<{ items: BackupFile[] }>('/api/v1/backups'),
   createBackup: () => request<BackupFile>('/api/v1/backups', { method: 'POST' }),
   verifyBackup: (id: string) => request<BackupCheck>(`/api/v1/backups/${encodeURIComponent(id)}/verify`),
@@ -411,6 +433,14 @@ export function formatDate(iso: string | null): string {
 export function formatDateTime(iso: string): string {
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString('he-IL');
+}
+
+/**
+ * Hebrew agrees with the count, so "1 תלמידים" is wrong. One takes the
+ * singular; everything else takes the plural.
+ */
+export function plural(count: number, singular: string, plural_: string): string {
+  return `${count} ${count === 1 ? singular : plural_}`;
 }
 
 export function formatBytes(bytes: number): string {

@@ -8,6 +8,32 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Home screen, shelf intake, and a design pass
+
+Schema version: **5** (unchanged)
+
+- **Shelf intake** (§12, §27): one barcode, one title, one step. The title is
+  found or created and the copy is always new, so adding the fifth copy of a
+  book needs nothing different from adding the first — and lands as a fifth
+  copy rather than a fifth book (§6). Matching is by ISBN first, then title and
+  author, the same rule the file import uses, so a book typed by hand and the
+  same book arriving in a spreadsheet land on one record.
+- **Home screen**: a KPI row of headline numbers — on loan, overdue, today's
+  activity, catalogue size — with the overdue list beneath it and the daily
+  tasks as targets big enough to hit without looking. A row of counts, not a
+  chart: four bars would say less than the four numbers.
+- Every figure is derived. Nothing on the home screen is a stored counter that
+  could drift from the loans themselves.
+- **Design pass**: a token system with a chosen dark mode rather than an
+  automatic flip, a grouped sidebar in place of ten top tabs, and one accent
+  hue reserved for the current item and the primary action. Status colour is
+  always accompanied by a word.
+- Sign-in now stands on its own, without the application frame around it.
+- **Fixed:** intake reported the copy count as it was *before* the copy was
+  added, so the screen always showed one fewer than the truth.
+- Hebrew agrees with the count — "1 תלמיד", not "1 תלמידים".
+- 14 further automated tests.
+
 ### Added — Sign-in and permissions
 
 Schema version: **5**
