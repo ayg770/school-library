@@ -1,0 +1,49 @@
+Read `CLAUDE.md` and `docs/PRODUCT_SPEC.md`.
+
+Do not build the whole application yet.
+
+Implement Phase 0 only, with only minimal Phase 1 scaffolding where technically required.
+
+Before coding:
+1. summarize the architecture you understood;
+2. identify blocking issues;
+3. propose exact folder structure;
+4. list packages and why;
+5. explain how production SQLite stays separate from binaries;
+6. explain migrations and safe backups;
+7. explain how future student-system integration is added without rewriting circulation.
+
+Then implement:
+- Electron + React + TypeScript shell;
+- secure Electron configuration;
+- local Node service;
+- SQLite initialization;
+- migration runner;
+- app-data folder structure;
+- logging;
+- health endpoint/service;
+- Hebrew RTL shell;
+- Settings/Support screen showing app version, schema version, data path and network status;
+- automated tests for DB initialization and migration runner.
+
+Also create:
+- docs/ARCHITECTURE.md
+- docs/DATABASE.md
+- docs/INTEGRATION.md
+- CHANGELOG.md
+
+Important:
+- no cloud dependency;
+- no real student data;
+- no production DB in repository;
+- no direct SQLite access from renderer;
+- do not implement checkout yet;
+- do not implement the real student connector yet;
+- keep code simple and testable.
+
+At the end:
+- run all configured checks;
+- report exact commands and results;
+- list files created/changed;
+- state what is ready for Phase 1;
+- stop and wait for approval before Phase 1.

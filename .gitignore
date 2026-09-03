@@ -1,0 +1,40 @@
+# --- Never commit production data (PRODUCT_SPEC.md §29) ---
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+backups/
+imports/
+exports/
+logs/
+*.log
+
+# Real student/catalog exports
+data/
+!data/.gitkeep
+*-real.csv
+*-real.xlsx
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Build output & deps ---
+node_modules/
+dist/
+build/
+out/
+release/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
