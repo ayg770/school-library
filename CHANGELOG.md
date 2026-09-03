@@ -8,6 +8,34 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Phase 1: Core catalog
+
+Schema version: **2**
+
+- Migration `002-catalog`: `classes`, `students`, `categories`,
+  `shelf_locations`, `books`, `book_copies`, with the indexes §5 calls for.
+- A title and a physical copy are separate records (§6): one book, many copies,
+  each with its own barcode.
+- Barcodes are stored exactly as supplied. A value containing whitespace is
+  rejected rather than trimmed, and lookup is exact — leading zeros are
+  significant (§7, §34).
+- Students are deactivated, never deleted, so circulation history stays whole.
+- ISBNs are normalised to digits so hyphenated and plain forms of the same
+  edition match.
+- Category cycles are rejected.
+- Catalog API under `/api/v1`: classes, students, categories, shelf locations,
+  books and copies, plus exact barcode lookup at
+  `GET /api/v1/copies/by-barcode/:barcode` and
+  `GET /api/v1/students/by-barcode/:barcode`.
+- Domain errors carry a code and a Hebrew message — `DUPLICATE_BARCODE` answers
+  409, validation answers 400 with the field named.
+- Screens: students (search, filter by class, create, edit, deactivate); books
+  (search by title, author, ISBN or copy barcode; detail with its copies; add a
+  copy); classes, categories and shelf locations.
+- The current screen is kept in the address, so a reload returns to it.
+- 37 further automated tests, including the upgrade of a version-1 database
+  carrying data to version 2.
+
 ### Added — Phase 0: Foundation
 
 Schema version: **1**

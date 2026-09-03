@@ -31,3 +31,68 @@ export {
   type AppSettings,
 } from './settings.js';
 export { createAppContext, type AppContext, type CreateAppContextOptions } from './context.js';
+
+// --- Catalog (Phase 1) ---
+export { DomainError, notFound, type DomainErrorCode } from './domain/errors.js';
+export {
+  createClass,
+  getClass,
+  listClasses,
+  updateClass,
+  type CreateClassInput,
+  type ListClassesOptions,
+  type SchoolClass,
+  type UpdateClassInput,
+} from './domain/classes.js';
+export {
+  createCategory,
+  getCategory,
+  listCategories,
+  updateCategory,
+  type Category,
+  type CreateCategoryInput,
+  type UpdateCategoryInput,
+} from './domain/categories.js';
+export {
+  createShelf,
+  getShelf,
+  listShelves,
+  updateShelf,
+  type CreateShelfInput,
+  type ShelfLocation,
+  type UpdateShelfInput,
+} from './domain/shelves.js';
+export {
+  createStudent,
+  findStudentByBarcode,
+  getStudent,
+  listStudents,
+  updateStudent,
+  type CreateStudentInput,
+  type ListStudentsOptions,
+  type Student,
+  type UpdateStudentInput,
+} from './domain/students.js';
+export {
+  createBook,
+  getBook,
+  listBooks,
+  updateBook,
+  type Book,
+  type CreateBookInput,
+  type ListBooksOptions,
+  type UpdateBookInput,
+} from './domain/books.js';
+export {
+  CONDITION_STATUSES,
+  createCopy,
+  findCopyByBarcode,
+  getCopy,
+  listCopies,
+  updateCopy,
+  type BookCopy,
+  type ConditionStatus,
+  type CreateCopyInput,
+  type ListCopiesOptions,
+  type UpdateCopyInput,
+} from './domain/copies.js';

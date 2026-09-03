@@ -33,9 +33,9 @@ Applied on every open, in `packages/core/src/db/open.ts`:
 
 In-memory databases skip WAL; they have no journal file to keep.
 
-## Current schema — version 1
+## Current schema — version 2
 
-Migration `001-initial` (`initial-settings-and-staff`).
+Migrations `001-initial` and `002-catalog`.
 
 ### `schema_migrations`
 Owned by the migration runner, not by any migration.
@@ -75,6 +75,84 @@ Index: `idx_staff_users_active`.
 
 There is no login screen yet — Phase 0 establishes the table and the hashing;
 authentication arrives with the screens that need it.
+
+## Migration 002 — the catalog
+
+`catalog-classes-students-books-copies`.
+
+### `classes`
+`public_id`, `external_class_id`, `name`, `grade`, `section`, `academic_year`,
+`active`, timestamps. `external_class_id` holds the identifier the
+student-management system uses, once it is known (§8).
+
+Indexes: `active`, `external_class_id`.
+
+### `students`
+`public_id`, `first_name`, `last_name`, `class_id` → `classes`,
+`local_barcode` (unique, nullable), `active`, `notes`, timestamps.
+
+`local_barcode` is a barcode on a student card issued by the library. It is
+**not** a cross-system identity: §7 forbids identifying a student across
+systems by anything the library assigns or by a name. The permanent external
+identifier lives in `external_student_links`, which arrives with the
+integration work.
+
+A student who has left is marked inactive. Deleting one would orphan every loan
+they ever had.
+
+Indexes: `class_id`, `active`, `last_name`.
+
+### `categories`
+`public_id`, `name`, `parent_id` → `categories` (self-referencing), `active`,
+timestamps. Cycles are rejected in the domain layer: a category cannot be its
+own ancestor, or the tree cannot be walked.
+
+### `shelf_locations`
+`public_id`, `name`, `room`, `shelf_code`, `active`, timestamps.
+
+### `books`
+The bibliographic record — a *title*, not an item.
+
+`public_id`, `title`, `subtitle`, `author_text`, `publisher`,
+`publication_year`, `isbn10`, `isbn13`, `language`, `category_id` →
+`categories`, `default_call_number`, `notes`, `active`, timestamps.
+
+Authors are free text rather than a normalised table (§7): the school's
+catalogue does not need author records, and adding them would cost every
+import and every form.
+
+ISBNs are normalised to digits (with a trailing `X` allowed on ISBN-10) so that
+hyphenated and unhyphenated forms of the same edition match. This does **not**
+contradict the barcode rule below — an ISBN identifies an edition, a barcode
+identifies one physical item.
+
+Indexes: `title`, `author_text`, `category_id`, `isbn13`, `active`.
+
+### `book_copies`
+One physical item.
+
+`public_id`, `book_id` → `books`, `barcode` (**unique**), `legacy_id`,
+`accession_number`, `shelf_location_id` → `shelf_locations`,
+`condition_status`, `purchase_date`, `price_cents`, `condition_note`,
+`verified_at`, `active`, timestamps.
+
+`condition_status` is constrained to `normal`, `damaged`, `lost`, `repair`,
+`withdrawn`.
+
+`verified_at` records when the copy was last confirmed present on the shelf —
+written by the shelf-intake screen in Phase 4.
+
+**Barcodes are stored exactly as supplied.** A value containing whitespace is
+rejected rather than trimmed: silently stripping a character would turn one
+library's barcode into a different one, and the mismatch would only surface
+later as a book that cannot be found. Leading zeros are significant, and
+lookup is exact.
+
+There is no "on loan" column. Whether a copy is out is derived from an
+unreturned row in `loans`, which Phase 2 adds (§7).
+
+Indexes: `book_id`, `shelf_location_id`, `condition_status`, `verified_at`,
+plus the unique index on `barcode`.
 
 ## Conventions for every future table
 
