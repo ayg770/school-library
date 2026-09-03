@@ -98,8 +98,49 @@ export interface Book {
   copyCount: number;
 }
 
+export interface BookCopyWithLoan extends BookCopy {
+  onLoan: boolean;
+  borrowerName: string | null;
+  dueAt: string | null;
+  overdue: boolean;
+}
+
 export interface BookDetail extends Book {
-  copies: BookCopy[];
+  copies: BookCopyWithLoan[];
+}
+
+export interface Loan {
+  publicId: string;
+  copyPublicId: string;
+  barcode: string;
+  bookPublicId: string;
+  bookTitle: string;
+  bookAuthor: string | null;
+  studentPublicId: string;
+  studentFirstName: string;
+  studentLastName: string;
+  className: string | null;
+  checkoutAt: string;
+  dueAt: string | null;
+  returnedAt: string | null;
+  renewalCount: number;
+  notes: string | null;
+  overdue: boolean;
+  daysOverdue: number;
+}
+
+export interface CheckinResult {
+  loan: Loan;
+  wasOverdue: boolean;
+}
+
+export interface StudentLibrarySummary {
+  student: Student;
+  activeLoanCount: number;
+  overdueCount: number;
+  activeLoans: Loan[];
+  lifetimeLoanCount: number;
+  lastActivityAt: string | null;
 }
 
 export interface PagedResult<T> {
@@ -193,9 +234,31 @@ export const api = {
 
   createCopy: (body: Record<string, unknown>) =>
     request<BookCopy>('/api/v1/copies', { method: 'POST', body: JSON.stringify(body) }),
+
+  checkout: (body: { studentPublicId: string; barcode: string }) =>
+    request<Loan>('/api/v1/circulation/checkout', { method: 'POST', body: JSON.stringify(body) }),
+  checkin: (barcode: string) =>
+    request<CheckinResult>('/api/v1/circulation/checkin', {
+      method: 'POST',
+      body: JSON.stringify({ barcode }),
+    }),
+  renew: (loanPublicId: string) =>
+    request<Loan>('/api/v1/circulation/renew', { method: 'POST', body: JSON.stringify({ loanPublicId }) }),
+
+  listLoans: (params: { studentPublicId?: string; bookPublicId?: string; status?: string }) =>
+    request<PagedResult<Loan>>(`/api/v1/loans${query({ ...params, limit: 200 })}`),
+  studentSummary: (publicId: string) =>
+    request<StudentLibrarySummary>(`/api/v1/students/${publicId}/library-summary`),
   updateCopy: (publicId: string, body: Record<string, unknown>) =>
     request<BookCopy>(`/api/v1/copies/${publicId}`, { method: 'PATCH', body: JSON.stringify(body) }),
 };
+
+/** Dates are shown in the browser's locale, which on the library PC is Hebrew. */
+export function formatDate(iso: string | null): string {
+  if (iso === null) return '—';
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString('he-IL');
+}
 
 export const CONDITION_LABELS: Record<ConditionStatus, string> = {
   normal: 'תקין',

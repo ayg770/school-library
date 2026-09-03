@@ -8,6 +8,7 @@ import {
   getCopy,
   listBooks,
   listCopies,
+  listLoans,
   updateBook,
   updateCopy,
   type AppContext,
@@ -78,10 +79,26 @@ export function registerBookRoutes(app: FastifyInstance, context: AppContext): v
 
   app.get('/api/v1/books/:publicId', async (request, reply) => {
     const { publicId } = parseInput(params, request.params, 'כתובת');
-    // A title is rarely useful without its physical items (§16).
+    // A title is rarely useful without its physical items, and §16 asks for
+    // the current borrower alongside each one.
     const book = getBook(context.db, publicId);
     const copies = listCopies(context.db, { bookPublicId: publicId, limit: 200 });
-    return reply.send({ ...book, copies: copies.items });
+    const openLoans = listLoans(context.db, { bookPublicId: publicId, status: 'active', limit: 200 });
+    const byCopy = new Map(openLoans.items.map((loan) => [loan.copyPublicId, loan]));
+
+    return reply.send({
+      ...book,
+      copies: copies.items.map((copy) => {
+        const loan = byCopy.get(copy.publicId);
+        return {
+          ...copy,
+          onLoan: loan !== undefined,
+          borrowerName: loan === undefined ? null : `${loan.studentFirstName} ${loan.studentLastName}`,
+          dueAt: loan?.dueAt ?? null,
+          overdue: loan?.overdue ?? false,
+        };
+      }),
+    });
   });
 
   app.patch('/api/v1/books/:publicId', async (request, reply) => {

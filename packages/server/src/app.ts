@@ -2,6 +2,7 @@ import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { DomainError, type AppContext } from '@school-library/core';
 import { apiError } from './errors.js';
 import { registerBookRoutes } from './routes/books.js';
+import { registerCirculationRoutes } from './routes/circulation.js';
 import { registerClassRoutes } from './routes/classes.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerStudentRoutes } from './routes/students.js';
@@ -30,6 +31,7 @@ export function buildApp(context: AppContext): FastifyInstance {
   registerStudentRoutes(app, context);
   registerTaxonomyRoutes(app, context);
   registerBookRoutes(app, context);
+  registerCirculationRoutes(app, context);
 
   app.setNotFoundHandler(async (request, reply) =>
     reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`)),

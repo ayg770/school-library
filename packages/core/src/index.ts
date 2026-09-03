@@ -96,3 +96,27 @@ export {
   type ListCopiesOptions,
   type UpdateCopyInput,
 } from './domain/copies.js';
+
+// --- Circulation (Phase 2) ---
+export {
+  listAudit,
+  recordAudit,
+  type AuditAction,
+  type AuditEntry,
+  type AuditRecord,
+} from './domain/audit.js';
+export {
+  addDays,
+  checkinByBarcode,
+  checkoutCopy,
+  countActiveLoans,
+  getLoan,
+  getStudentLibrarySummary,
+  listLoans,
+  renewLoan,
+  type CheckinResult,
+  type CheckoutInput,
+  type ListLoansOptions,
+  type Loan,
+  type StudentLibrarySummary,
+} from './domain/circulation.js';
