@@ -1,8 +1,12 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
-import type { AppContext } from '@school-library/core';
+import { DomainError, type AppContext } from '@school-library/core';
 import { apiError } from './errors.js';
+import { registerBookRoutes } from './routes/books.js';
+import { registerClassRoutes } from './routes/classes.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerStudentRoutes } from './routes/students.js';
 import { registerSystemRoutes } from './routes/system.js';
+import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 
 /**
  * Builds the HTTP API over an application context.
@@ -22,6 +26,10 @@ export function buildApp(context: AppContext): FastifyInstance {
 
   registerHealthRoutes(app, context);
   registerSystemRoutes(app, context);
+  registerClassRoutes(app, context);
+  registerStudentRoutes(app, context);
+  registerTaxonomyRoutes(app, context);
+  registerBookRoutes(app, context);
 
   app.setNotFoundHandler(async (request, reply) =>
     reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`)),
@@ -30,6 +38,14 @@ export function buildApp(context: AppContext): FastifyInstance {
   // §24: a user sees a short message, never a stack trace. The detail goes to
   // the log, where §21 keeps it free of secrets.
   app.setErrorHandler(async (error, request, reply) => {
+    // A domain error is an expected outcome — a duplicate barcode, a missing
+    // student — so it carries its own code and a message written for the
+    // librarian, and is logged as a warning rather than a fault.
+    if (error instanceof DomainError) {
+      request.log.warn({ code: error.code, field: error.field }, 'Rejected request');
+      return reply.code(error.httpStatus).send(apiError(error.code, error.message));
+    }
+
     request.log.error({ err: error }, 'Request failed');
     const status = error.statusCode ?? 500;
 

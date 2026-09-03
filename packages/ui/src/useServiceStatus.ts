@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchHealth } from './api.js';
+import { api } from './api.js';
 
 export type ServiceState = 'checking' | 'reachable' | 'unreachable';
 
@@ -33,7 +33,7 @@ export function useServiceStatus(): { service: ServiceState; online: boolean } {
 
     const check = async (): Promise<void> => {
       try {
-        await fetchHealth(controller.signal);
+        await api.health(controller.signal);
         if (!cancelled) setService('reachable');
       } catch {
         if (!cancelled) setService('unreachable');

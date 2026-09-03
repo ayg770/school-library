@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { fetchSystemInfo, type SystemInfo } from './api.js';
-import { useServiceStatus } from './useServiceStatus.js';
+import { api, type SystemInfo } from '../api.js';
+import { useServiceStatus } from '../useServiceStatus.js';
 
 /**
  * Settings and Support — PRODUCT_SPEC.md §24.
@@ -17,7 +17,8 @@ export function SupportScreen(): JSX.Element {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetchSystemInfo(controller.signal)
+    api
+      .systemInfo(controller.signal)
       .then((result) => setInfo(result))
       .catch((cause: unknown) => {
         if (controller.signal.aborted) return;
