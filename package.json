@@ -1,0 +1,34 @@
+{
+  "name": "school-library",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces --if-present",
+    "dev:server": "npm run dev -w @school-library/server",
+    "dev:ui": "npm run dev -w @school-library/ui",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "tsc --build --force",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "typescript": "5.7.2",
+    "tsx": "4.19.2",
+    "vitest": "2.1.8",
+    "eslint": "9.17.0",
+    "typescript-eslint": "8.18.1",
+    "@eslint/js": "9.17.0",
+    "vite": "5.4.11"
+  },
+  "overrides": {
+    "vite": "5.4.11"
+  }
+}
