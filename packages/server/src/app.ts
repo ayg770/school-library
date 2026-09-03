@@ -1,7 +1,9 @@
 import multipart from '@fastify/multipart';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { BackupError, DomainError, type AppContext } from '@school-library/core';
+import { registerAuth } from './auth.js';
 import { apiError } from './errors.js';
+import { registerAuthRoutes } from './routes/auth.js';
 import { registerBackupRoutes } from './routes/backups.js';
 import { registerBookRoutes } from './routes/books.js';
 import { registerCirculationRoutes } from './routes/circulation.js';
@@ -50,6 +52,11 @@ export function buildApp(context: AppContext): FastifyInstance {
     }
   });
 
+  // Registered before any route so a route added later is closed by default
+  // rather than by remembering to close it.
+  registerAuth(app, context);
+
+  registerAuthRoutes(app, context);
   registerHealthRoutes(app, context);
   registerSystemRoutes(app, context);
   registerClassRoutes(app, context);

@@ -1,34 +1,20 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createAppContext, createLogger, type AppContext } from '@school-library/core';
-import { buildApp } from '../src/app.js';
-
-const quietLogger = createLogger({ level: 'fatal' });
+import { createTestApp, type TestApp } from './helpers.js';
 
 describe('catalog API', () => {
-  let root: string;
-  let context: AppContext;
-  let app: FastifyInstance;
+  let harness: TestApp;
 
   beforeEach(async () => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'school-library-catalog-'));
-    context = createAppContext({ dataRoot: root, logger: quietLogger });
-    app = buildApp(context);
-    await app.ready();
+    harness = await createTestApp();
   });
 
   afterEach(async () => {
-    await app.close();
-    context.close();
-    fs.rmSync(root, { recursive: true, force: true });
+    await harness.close();
   });
 
-  const post = (url: string, payload: unknown) => app.inject({ method: 'POST', url, payload });
-  const patch = (url: string, payload: unknown) => app.inject({ method: 'PATCH', url, payload });
-  const get = (url: string) => app.inject({ method: 'GET', url });
+  const post = (url: string, payload?: unknown) => harness.post(url, payload);
+  const patch = (url: string, payload: unknown) => harness.patch(url, payload);
+  const get = (url: string) => harness.get(url);
 
   it('creates a class and a student in it', async () => {
     const klass = await post('/api/v1/classes', { name: 'ז-1', grade: 'ז' });
@@ -121,7 +107,7 @@ describe('catalog API', () => {
     const fetched = await get(`/api/v1/students/${publicId}`);
     expect(fetched.statusCode).toBe(200);
 
-    const deleteAttempt = await app.inject({ method: 'DELETE', url: `/api/v1/students/${publicId}` });
+    const deleteAttempt = await harness.app.inject({ method: 'DELETE', headers: { cookie: harness.cookie }, url: `/api/v1/students/${publicId}` });
     expect(deleteAttempt.statusCode).toBe(404);
   });
 

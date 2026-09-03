@@ -162,3 +162,25 @@ export {
   type ImportRow,
   type RowStatus,
 } from './import/runner.js';
+
+// --- Staff accounts and sign-in ---
+export {
+  ROLES,
+  createStaffUser,
+  describeRole,
+  getStaffUser,
+  listStaffUsers,
+  needsFirstUser,
+  purgeExpiredSessions,
+  resolveSession,
+  revokeAllSessionsFor,
+  roleAllows,
+  signIn,
+  signOut,
+  updateStaffUser,
+  type CreateStaffUserInput,
+  type Role,
+  type Session,
+  type StaffUser,
+  type UpdateStaffUserInput,
+} from './domain/auth.js';

@@ -8,6 +8,31 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Sign-in and permissions
+
+Schema version: **5**
+
+- Migration `005-sessions`: `staff_sessions`.
+- A username and password held locally, not an identity provider — an identity
+  provider cannot be reached with the network down, which is the one thing this
+  application must survive. See `docs/ARCHITECTURE.md` AD-6.
+- Three roles: `read_only` reads, `librarian` runs the library, `admin` also
+  manages accounts, backup and restore.
+- Every route is closed by default. A route added later is protected unless it
+  is explicitly listed as public, rather than the other way round.
+- The session token lives in an httpOnly cookie and only its hash is stored, so
+  neither a page script nor a copy of the database yields a session.
+- A wrong username and a wrong password give the same answer and take a
+  comparable time, so the form cannot be used to discover which accounts exist.
+- Changing a password, or deactivating an account, ends its sessions at once.
+- The last administrator cannot be demoted or deactivated — locking everyone
+  out is not recoverable from inside the application.
+- A first-run screen creates the first administrator, and refuses once any
+  account exists.
+- Screens the current role cannot use are hidden, though the service refuses
+  the request regardless of what the interface offers.
+- 23 further automated tests.
+
 ### Added — Phase 4: Import from a file
 
 Schema version: **4**

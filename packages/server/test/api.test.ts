@@ -1,44 +1,30 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createAppContext, createLogger, type AppContext } from '@school-library/core';
-import { buildApp } from '../src/app.js';
+import { createTestApp, type TestApp } from './helpers.js';
 import { loadConfig } from '../src/config.js';
 
-const quietLogger = createLogger({ level: 'fatal' });
-
 describe('local service API', () => {
-  let root: string;
-  let context: AppContext;
-  let app: FastifyInstance;
+  let harness: TestApp;
 
   beforeEach(async () => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'school-library-api-'));
-    context = createAppContext({ dataRoot: root, logger: quietLogger });
-    app = buildApp(context);
-    await app.ready();
+    harness = await createTestApp();
   });
 
   afterEach(async () => {
-    await app.close();
-    context.close();
-    fs.rmSync(root, { recursive: true, force: true });
+    await harness.close();
   });
 
   it('reports health with the running versions', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/v1/health' });
+    const response = await harness.get('/api/v1/health');
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as { status: string; appVersion: string; schemaVersion: number };
     expect(body.status).toBe('ok');
-    expect(body.schemaVersion).toBe(context.schemaVersion);
-    expect(body.appVersion).toBe(context.appVersion);
+    expect(body.schemaVersion).toBe(harness.context.schemaVersion);
+    expect(body.appVersion).toBe(harness.context.appVersion);
   });
 
   it('exposes the information the support screen needs (§24)', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/v1/system/info' });
+    const response = await harness.get('/api/v1/system/info');
 
     expect(response.statusCode).toBe(200);
     const body = response.json() as {
@@ -48,16 +34,16 @@ describe('local service API', () => {
       settings: Record<string, unknown>;
     };
 
-    expect(body.appVersion).toBe(context.appVersion);
+    expect(body.appVersion).toBe(harness.context.appVersion);
     expect(body.schemaVersion).toBeGreaterThanOrEqual(1);
-    expect(body.paths.root).toBe(context.paths.root);
-    expect(body.paths.database).toBe(context.paths.databaseFile);
+    expect(body.paths.root).toBe(harness.context.paths.root);
+    expect(body.paths.database).toBe(harness.context.paths.databaseFile);
     expect(body.settings.default_loan_days).toBe(14);
     expect(body.settings.lan_enabled).toBe(false);
   });
 
   it('returns a structured error for an unknown route (§9)', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/v1/does-not-exist' });
+    const response = await harness.get('/api/v1/does-not-exist');
 
     expect(response.statusCode).toBe(404);
     const body = response.json() as { error: { code: string; message: string } };
@@ -68,10 +54,8 @@ describe('local service API', () => {
   it('accepts a POST with a JSON content type and no body', async () => {
     // The browser's fetch sends this shape for an action that takes no
     // parameters. Rejecting it made "back up now" and "run the import" fail.
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/backups',
-      headers: { 'content-type': 'application/json' },
+    const response = await harness.post('/api/v1/backups', undefined, {
+      headers: { cookie: harness.cookie, 'content-type': 'application/json' },
       payload: '',
     });
 
@@ -79,10 +63,8 @@ describe('local service API', () => {
   });
 
   it('still rejects a malformed JSON body', async () => {
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/books',
-      headers: { 'content-type': 'application/json' },
+    const response = await harness.post('/api/v1/books', undefined, {
+      headers: { cookie: harness.cookie, 'content-type': 'application/json' },
       payload: '{ this is not json',
     });
 
@@ -90,7 +72,7 @@ describe('local service API', () => {
   });
 
   it('never exposes SQL or internals in an error body (§9)', async () => {
-    const response = await app.inject({ method: 'GET', url: '/api/v1/does-not-exist' });
+    const response = await harness.get('/api/v1/does-not-exist');
     expect(response.body.toUpperCase()).not.toContain('SELECT');
     expect(response.body).not.toContain('sqlite');
   });
