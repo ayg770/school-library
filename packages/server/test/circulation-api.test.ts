@@ -1,28 +1,16 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import type { FastifyInstance } from 'fastify';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createAppContext, createLogger, type AppContext } from '@school-library/core';
-import { buildApp } from '../src/app.js';
-
-const quietLogger = createLogger({ level: 'fatal' });
+import { createTestApp, type TestApp } from './helpers.js';
 
 describe('circulation API', () => {
-  let root: string;
-  let context: AppContext;
-  let app: FastifyInstance;
+  let harness: TestApp;
+
+  const post = (url: string, payload?: unknown) => harness.post(url, payload);
+  const get = (url: string) => harness.get(url);
   let studentPublicId: string;
   let bookPublicId: string;
 
-  const post = (url: string, payload: unknown) => app.inject({ method: 'POST', url, payload });
-  const get = (url: string) => app.inject({ method: 'GET', url });
-
   beforeEach(async () => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'school-library-circ-'));
-    context = createAppContext({ dataRoot: root, logger: quietLogger });
-    app = buildApp(context);
-    await app.ready();
+    harness = await createTestApp();
 
     const student = await post('/api/v1/students', { firstName: 'שרה', lastName: 'כהן' });
     studentPublicId = (student.json() as { publicId: string }).publicId;
@@ -33,9 +21,7 @@ describe('circulation API', () => {
   });
 
   afterEach(async () => {
-    await app.close();
-    context.close();
-    fs.rmSync(root, { recursive: true, force: true });
+    await harness.close();
   });
 
   it('checks a book out and back in', async () => {

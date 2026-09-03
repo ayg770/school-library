@@ -1,33 +1,21 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import type { FastifyInstance } from 'fastify';
+import { listBooks } from '@school-library/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { createAppContext, createLogger, listBooks, type AppContext } from '@school-library/core';
-import { buildApp } from '../src/app.js';
-
-const quietLogger = createLogger({ level: 'fatal' });
+import { createTestApp, type TestApp } from './helpers.js';
 
 describe('backup API', () => {
-  let root: string;
-  let context: AppContext;
-  let app: FastifyInstance;
+  let harness: TestApp;
 
-  const post = (url: string, payload?: unknown) =>
-    app.inject({ method: 'POST', url, ...(payload === undefined ? {} : { payload }) });
-  const get = (url: string) => app.inject({ method: 'GET', url });
+  const post = (url: string, payload?: unknown) => harness.post(url, payload);
+  const get = (url: string) => harness.get(url);
 
   beforeEach(async () => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'school-library-backup-'));
-    context = createAppContext({ dataRoot: root, logger: quietLogger });
-    app = buildApp(context);
-    await app.ready();
+    harness = await createTestApp();
   });
 
   afterEach(async () => {
-    await app.close();
-    context.close();
-    fs.rmSync(root, { recursive: true, force: true });
+    await harness.close();
   });
 
   it('creates a backup and lists it', async () => {
@@ -37,7 +25,7 @@ describe('backup API', () => {
     expect(created.statusCode).toBe(201);
     const backup = created.json() as { id: string; sizeBytes: number; schemaVersion: number };
     expect(backup.sizeBytes).toBeGreaterThan(0);
-    expect(backup.schemaVersion).toBe(context.schemaVersion);
+    expect(backup.schemaVersion).toBe(harness.context.schemaVersion);
 
     const listed = await get('/api/v1/backups');
     const items = (listed.json() as { items: Array<{ id: string }> }).items;
@@ -67,14 +55,14 @@ describe('backup API', () => {
     const result = restored.json() as { safetyBackup: { id: string } };
     expect(result.safetyBackup.id).toContain('before-restore');
 
-    // The API answers from the restored database through the same context.
+    // The API answers from the restored database through the same harness.context.
     const books = (await get('/api/v1/books')).json() as { total: number; items: Array<{ title: string }> };
     expect(books.total).toBe(1);
     expect(books.items[0]?.title).toBe('ספר מהגיבוי');
 
     // And writes still work through the reopened connection.
     expect((await post('/api/v1/books', { title: 'אחרי שחזור' })).statusCode).toBe(201);
-    expect(listBooks(context.db).total).toBe(2);
+    expect(listBooks(harness.context.db).total).toBe(2);
   });
 
   it('refuses to restore without an explicit confirmation', async () => {
@@ -95,7 +83,7 @@ describe('backup API', () => {
 
   it('reports a corrupt backup as a conflict rather than restoring it', async () => {
     const name = 'library-20260101T000000000Z-v3-manual.sqlite';
-    fs.writeFileSync(path.join(context.paths.backups, name), 'not a database');
+    fs.writeFileSync(path.join(harness.context.paths.backups, name), 'not a database');
 
     const response = await post(`/api/v1/backups/${name}/restore`, { confirm: true });
 

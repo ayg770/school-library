@@ -33,9 +33,10 @@ Applied on every open, in `packages/core/src/db/open.ts`:
 
 In-memory databases skip WAL; they have no journal file to keep.
 
-## Current schema — version 4
+## Current schema — version 5
 
-Migrations `001-initial`, `002-catalog`, `003-circulation` and `004-imports`.
+Migrations `001-initial`, `002-catalog`, `003-circulation`, `004-imports`
+and `005-sessions`.
 
 ### `schema_migrations`
 Owned by the migration runner, not by any migration.
@@ -225,6 +226,35 @@ afterwards.
 Row statuses: `pending` → `ready` / `warning` / `error` / `skipped`, then
 `imported` or `failed` once committed. A `warning` row is imported; an `error`
 row is not.
+
+## Migration 005 — sign-in sessions
+
+`staff-sessions`.
+
+`token_hash` (unique), `user_id` → `staff_users`, `created_at`, `expires_at`,
+`last_seen_at`.
+
+**Only a hash of the token is stored.** Someone who obtains a copy of the
+database — a backup on a USB stick — still cannot use it to sign in.
+
+Sessions live in the database rather than in memory so they survive a restart:
+a librarian mid-shift should not be signed out because the service was updated.
+Expired rows are swept at start-up.
+
+`staff_users` gains its purpose here: the accounts created in migration 001 are
+now what sign-in checks. See `docs/ARCHITECTURE.md` AD-6 for why this is a local
+password rather than an identity provider.
+
+### Who may do what
+
+| Role | May |
+|---|---|
+| `read_only` | Read anything |
+| `librarian` | Everything above, plus circulation, catalogue and import |
+| `admin` | Everything above, plus staff accounts, backup and restore |
+
+Enforced in one place, on every request, and closed by default: a route added
+later is protected unless it is explicitly listed as public.
 
 ## Conventions for every future table
 

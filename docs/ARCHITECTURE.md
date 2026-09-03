@@ -163,3 +163,102 @@ into the repository and served locally. No CDN, at build time or run time.
   scan path.
 - A Hebrew font with an appropriate open licence is vendored into the repo, not
   linked.
+
+---
+
+## AD-6 — Sign-in is a local username and password
+
+**Status:** Accepted · 2026-09-03
+
+### Context
+
+The library needs accounts before it is reachable from anywhere but the
+machine it runs on: it holds children's names, classes and borrowing history.
+Two options were on the table — a username and password held by the
+application, or signing in through an identity provider such as Google.
+
+### Decision
+
+A username and a password, stored in `staff_users`, verified locally.
+
+### Why not an identity provider
+
+**It cannot work offline.** The first non-negotiable rule in `CLAUDE.md` is
+that checkout and return work with the internet disconnected. An identity
+provider is, by definition, reachable only over the network. Choosing one now
+would mean the library could not be opened on a morning the connection is down
+— and it would have to be replaced anyway when the application moves to the
+library computer, which is the whole direction of AD-1.
+
+A local password works identically in both places, and there is no second
+system to keep accounts in step with.
+
+The number of accounts is small — a librarian, perhaps an assistant, perhaps a
+read-only terminal — so the administrative saving an identity provider offers
+does not apply here either.
+
+### Consequences
+
+- Passwords are hashed with scrypt from Node's own crypto module: no second
+  native dependency to rebuild per platform (see `password.ts`).
+- Sessions live in the database, not in memory, so a restart does not sign
+  everyone out — and the same mechanism works unchanged on the desktop.
+- Only a hash of each session token is stored. A copy of the database, such as
+  a backup on a USB stick, cannot be turned into a session.
+- Password policy, lockout and rotation are the library's own to set. The
+  current rule is a minimum length; anything more should follow a real need
+  rather than habit.
+
+### Revisit when
+
+The school already runs a directory that staff sign into, and offline operation
+has been given up.
+
+---
+
+## AD-7 — The data stays in SQLite, not a hosted database
+
+**Status:** Accepted · 2026-09-03
+
+### Context
+
+Hosting the application online raises the question of where the data lives. A
+hosted Postgres service — Supabase and its like — is the usual answer for a web
+application, and was considered before this project's constraints were known.
+
+### Decision
+
+The library's data stays in the SQLite file described in `docs/DATABASE.md`,
+wherever the application runs.
+
+### Why
+
+**A hosted database is a network dependency, and the library must work without
+one.** PRODUCT_SPEC.md §2 and §23 require circulation to complete locally; a
+remote database makes every checkout a network round trip that can fail. The
+offline desktop application that AD-1 keeps open would need a local database
+anyway, so adopting a hosted one now would mean maintaining two data layers and
+a synchronisation problem between them.
+
+It would also mean rewriting every query, every migration and the whole backup
+and restore mechanism, for a library whose entire catalogue is a few megabytes.
+
+### What this asks of hosting
+
+The one requirement: **a persistent disk.** Platforms with an ephemeral
+filesystem lose the database on each deploy, so the service must run somewhere
+its data directory survives — a small virtual machine, or a host that offers a
+mounted volume.
+
+`LIBRARY_DATA_DIR` points the application at that volume.
+
+### How the move to the library computer works
+
+Not an export and re-import. The backup mechanism from Phase 5 already is the
+migration path: take a backup on the server, restore it on the library
+computer. Same file format, same integrity checks.
+
+### Revisit when
+
+The library needs more than one site writing at once, which SQLite on a single
+host cannot serve. Nothing in the current plan requires it.

@@ -12,6 +12,7 @@
     "build": "tsc --build"
   },
   "dependencies": {
+    "@fastify/cookie": "11.0.2",
     "@fastify/multipart": "9.0.1",
     "@school-library/core": "*",
     "fastify": "5.2.0",

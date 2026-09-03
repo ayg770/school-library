@@ -159,6 +159,27 @@ export interface BackupCheck {
   problems: string[];
 }
 
+export type Role = 'admin' | 'librarian' | 'read_only';
+
+export interface StaffUser {
+  publicId: string;
+  username: string;
+  displayName: string;
+  role: Role;
+  active: boolean;
+}
+
+export interface SessionState {
+  user: StaffUser | null;
+  setupRequired: boolean;
+}
+
+export const ROLE_LABELS: Record<Role, string> = {
+  admin: 'מנהל מערכת',
+  librarian: 'ספרן',
+  read_only: 'צפייה בלבד',
+};
+
 export type ImportType = 'students' | 'books';
 export type RowStatus = 'pending' | 'ready' | 'warning' | 'error' | 'skipped' | 'imported' | 'failed';
 
@@ -272,6 +293,25 @@ function query(params: Record<string, string | number | boolean | undefined>): s
 }
 
 export const api = {
+  session: () => request<SessionState>('/api/v1/auth/session'),
+  login: (username: string, password: string) =>
+    request<{ user: StaffUser }>('/api/v1/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+  logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
+  setup: (body: { username: string; password: string; displayName: string }) =>
+    request<{ user: StaffUser }>('/api/v1/auth/setup', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  listStaff: () => request<{ items: StaffUser[] }>('/api/v1/staff'),
+  createStaff: (body: Record<string, unknown>) =>
+    request<StaffUser>('/api/v1/staff', { method: 'POST', body: JSON.stringify(body) }),
+  updateStaff: (publicId: string, body: Record<string, unknown>) =>
+    request<StaffUser>(`/api/v1/staff/${publicId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
   health: (signal?: AbortSignal) =>
     request<HealthStatus>('/api/v1/health', signal ? { signal } : undefined),
   systemInfo: (signal?: AbortSignal) =>

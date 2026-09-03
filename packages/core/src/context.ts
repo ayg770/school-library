@@ -1,4 +1,5 @@
 import { createBackupSync, pruneBackups, type BackupFile } from './backup.js';
+import { purgeExpiredSessions } from './domain/auth.js';
 import { openDatabase, type Db } from './db/open.js';
 import { migrations } from './db/migrations/index.js';
 import {
@@ -104,6 +105,11 @@ export function createAppContext(options: CreateAppContextOptions = {}): AppCont
   const settings = readSettings(db, (key, reason) => {
     logger.warn({ key, reason }, 'Ignoring invalid stored setting; using its default');
   });
+
+  const expiredSessions = purgeExpiredSessions(db);
+  if (expiredSessions > 0) {
+    logger.info({ removed: expiredSessions }, 'Removed expired sign-in sessions');
+  }
 
   const pruned = pruneBackups(paths, settings.backup_retention_count);
   if (pruned.length > 0) {
