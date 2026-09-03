@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { BackupScreen } from './screens/BackupScreen.js';
 import { BooksScreen } from './screens/BooksScreen.js';
 import { CatalogSetupScreen } from './screens/CatalogSetupScreen.js';
 import { CheckoutScreen } from './screens/CheckoutScreen.js';
@@ -7,7 +8,15 @@ import { ReturnScreen } from './screens/ReturnScreen.js';
 import { StudentsScreen } from './screens/StudentsScreen.js';
 import { SupportScreen } from './screens/SupportScreen.js';
 
-type ScreenId = 'checkout' | 'return' | 'loans' | 'students' | 'books' | 'setup' | 'support';
+type ScreenId =
+  | 'checkout'
+  | 'return'
+  | 'loans'
+  | 'students'
+  | 'books'
+  | 'setup'
+  | 'backup'
+  | 'support';
 
 // Ordered as §25 lists them: the two daily tasks first.
 const SCREENS: ReadonlyArray<{ id: ScreenId; label: string }> = [
@@ -17,11 +26,12 @@ const SCREENS: ReadonlyArray<{ id: ScreenId; label: string }> = [
   { id: 'students', label: 'תלמידים' },
   { id: 'books', label: 'ספרים' },
   { id: 'setup', label: 'כיתות, קטגוריות ומדפים' },
+  { id: 'backup', label: 'גיבוי' },
   { id: 'support', label: 'הגדרות ותמיכה' },
 ];
 
 /** Screens from PRODUCT_SPEC.md §25 that later phases add. */
-const PLANNED_SCREENS = ['קליטת ספרים מהמדף', 'דוחות', 'ייבוא', 'גיבוי'];
+const PLANNED_SCREENS = ['קליטת ספרים מהמדף', 'דוחות', 'ייבוא'];
 
 const DEFAULT_SCREEN: ScreenId = 'checkout';
 
@@ -50,7 +60,7 @@ export function App(): JSX.Element {
     <>
       <header className="app-header">
         <h1>ספריית בית הספר</h1>
-        <span className="phase-tag">שלב 2 — השאלה והחזרה</span>
+        <span className="phase-tag">שלב 5 — גיבוי ושחזור</span>
       </header>
 
       <nav className="nav" aria-label="ניווט ראשי">
@@ -73,6 +83,7 @@ export function App(): JSX.Element {
         {screen === 'students' && <StudentsScreen />}
         {screen === 'books' && <BooksScreen />}
         {screen === 'setup' && <CatalogSetupScreen />}
+        {screen === 'backup' && <BackupScreen />}
         {screen === 'support' && <SupportScreen />}
 
         {screen === 'support' && (

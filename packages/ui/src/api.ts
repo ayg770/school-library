@@ -143,6 +143,22 @@ export interface StudentLibrarySummary {
   lastActivityAt: string | null;
 }
 
+export interface BackupFile {
+  id: string;
+  path: string;
+  reason: 'manual' | 'before-migration' | 'before-restore' | 'automatic';
+  createdAt: string;
+  sizeBytes: number;
+  schemaVersion: number | null;
+}
+
+export interface BackupCheck {
+  ok: boolean;
+  integrity: string;
+  schemaVersion: number;
+  problems: string[];
+}
+
 export interface PagedResult<T> {
   items: T[];
   total: number;
@@ -245,6 +261,15 @@ export const api = {
   renew: (loanPublicId: string) =>
     request<Loan>('/api/v1/circulation/renew', { method: 'POST', body: JSON.stringify({ loanPublicId }) }),
 
+  listBackups: () => request<{ items: BackupFile[] }>('/api/v1/backups'),
+  createBackup: () => request<BackupFile>('/api/v1/backups', { method: 'POST' }),
+  verifyBackup: (id: string) => request<BackupCheck>(`/api/v1/backups/${encodeURIComponent(id)}/verify`),
+  restoreBackup: (id: string) =>
+    request<{ restoredFrom: BackupFile; safetyBackup: BackupFile }>(
+      `/api/v1/backups/${encodeURIComponent(id)}/restore`,
+      { method: 'POST', body: JSON.stringify({ confirm: true }) },
+    ),
+
   listLoans: (params: { studentPublicId?: string; bookPublicId?: string; status?: string }) =>
     request<PagedResult<Loan>>(`/api/v1/loans${query({ ...params, limit: 200 })}`),
   studentSummary: (publicId: string) =>
@@ -259,6 +284,24 @@ export function formatDate(iso: string | null): string {
   const parsed = new Date(iso);
   return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleDateString('he-IL');
 }
+
+export function formatDateTime(iso: string): string {
+  const parsed = new Date(iso);
+  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString('he-IL');
+}
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} בייט`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export const BACKUP_REASON_LABELS: Record<BackupFile['reason'], string> = {
+  manual: 'ידני',
+  automatic: 'אוטומטי',
+  'before-migration': 'לפני עדכון גרסה',
+  'before-restore': 'לפני שחזור',
+};
 
 export const CONDITION_LABELS: Record<ConditionStatus, string> = {
   normal: 'תקין',

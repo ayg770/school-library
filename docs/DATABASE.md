@@ -254,6 +254,52 @@ A database is never deleted or recreated to resolve any of these (§19, §34).
 
 ## Backups
 
-Not yet implemented — Phase 5. When they are, §18 requires the SQLite online
-backup API or `VACUUM INTO`, never a file copy of a live database, and a
-verified backup before every migration, restore or significant update.
+Backups live in `backups/` under the application data root, named
+`library-<timestamp>-v<schema>-<reason>.sqlite`, so what a file is and when it
+was taken are readable without opening it.
+
+**Never a file copy of a live database.** A plain copy of a WAL-mode database
+can capture a torn state — the main file without the log that completes it —
+and produces a backup that looks fine until the day it is needed. Two
+mechanisms are used instead, both allowed by §18:
+
+| Mechanism | Used for | Why |
+|---|---|---|
+| SQLite online backup API (`db.backup`) | Manual backups | Coherent snapshot without blocking a library that is open |
+| `VACUUM INTO` | Startup, before migrations | Synchronous, so it works where application start-up cannot await; produces a compacted copy |
+
+### When one is taken automatically
+
+Before migrations run, and only when there is something to lose: a brand-new
+database has nothing to back up, and an up-to-date one is not being changed.
+If a migration then fails, the snapshot is on disk and the database is left
+exactly as it was (§19).
+
+Before every restore, so a restore of the wrong backup can itself be undone.
+
+### Retention
+
+`backup_retention_count` bounds the routine snapshots. Backups taken before a
+migration or a restore are **never** pruned: those are the ones wanted when an
+upgrade goes wrong, which is precisely when the routine snapshots have already
+rolled over.
+
+### Restore
+
+The order is what makes it safe:
+
+1. Verify the backup — open it read-only, run `PRAGMA integrity_check`, and
+   confirm its schema version is one this build knows. A backup written by a
+   newer release is refused rather than loaded.
+2. Snapshot the current state (`before-restore`).
+3. Close the connection, which checkpoints the WAL.
+4. Remove the stale `-wal` and `-shm` files and put the backup in place.
+5. Reopen. If step 4 failed, the snapshot from step 2 is restored first.
+6. Record the restore in the audit log, against the restored database.
+
+`AppContext.db` is a getter rather than a fixed reference, so everything
+holding the context keeps working across the swap.
+
+Restore is an administrator action (§18). There is no sign-in yet, so for now
+it is protected only by the service being bound to loopback — it must sit
+behind a role check before local-network access is enabled.

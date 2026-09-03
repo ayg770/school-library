@@ -120,3 +120,18 @@ export {
   type Loan,
   type StudentLibrarySummary,
 } from './domain/circulation.js';
+
+// --- Backup and restore (Phase 5) ---
+export {
+  BackupError,
+  createBackup,
+  createBackupSync,
+  listBackups,
+  pruneBackups,
+  restoreBackup,
+  verifyBackup,
+  type BackupCheck,
+  type BackupFile,
+  type BackupReason,
+  type RestoreResult,
+} from './backup.js';

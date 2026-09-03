@@ -8,6 +8,30 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Phase 5: Backup and update safety
+
+Schema version: **3** (unchanged)
+
+- Backups via SQLite's online backup API, and `VACUUM INTO` where the caller
+  cannot await — never a file copy of a live database.
+- An automatic backup before migrations run, taken only when there is data to
+  lose and a change about to happen. If the migration then fails, the snapshot
+  is on disk and the database is untouched (§19).
+- An automatic snapshot before every restore, so restoring the wrong backup can
+  itself be undone.
+- Retention bounded by `backup_retention_count`; snapshots taken before a
+  migration or restore are never pruned.
+- Verification before any restore: integrity check, and refusal of a backup
+  written by a newer release than the running build.
+- `AppContext.db` became a getter so a restore can swap the underlying database
+  without anything holding the context needing to know.
+- API: `GET/POST /api/v1/backups`, `GET /api/v1/backups/:id/verify`,
+  `POST /api/v1/backups/:id/restore` — the last requiring an explicit
+  `confirm`, so a stray request cannot replace the database.
+- A גיבוי screen: list, back up now, check, and restore behind a confirmation
+  that says what will be lost.
+- 19 further automated tests.
+
 ### Added — Phase 2: Circulation
 
 Schema version: **3**

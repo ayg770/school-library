@@ -1,6 +1,7 @@
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
-import { DomainError, type AppContext } from '@school-library/core';
+import { BackupError, DomainError, type AppContext } from '@school-library/core';
 import { apiError } from './errors.js';
+import { registerBackupRoutes } from './routes/backups.js';
 import { registerBookRoutes } from './routes/books.js';
 import { registerCirculationRoutes } from './routes/circulation.js';
 import { registerClassRoutes } from './routes/classes.js';
@@ -32,6 +33,7 @@ export function buildApp(context: AppContext): FastifyInstance {
   registerTaxonomyRoutes(app, context);
   registerBookRoutes(app, context);
   registerCirculationRoutes(app, context);
+  registerBackupRoutes(app, context);
 
   app.setNotFoundHandler(async (request, reply) =>
     reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`)),
@@ -46,6 +48,14 @@ export function buildApp(context: AppContext): FastifyInstance {
     if (error instanceof DomainError) {
       request.log.warn({ code: error.code, field: error.field }, 'Rejected request');
       return reply.code(error.httpStatus).send(apiError(error.code, error.message));
+    }
+
+    // A backup problem is reportable too: the operator needs to know which
+    // backup was rejected and why, not a generic server error.
+    if (error instanceof BackupError) {
+      request.log.error({ err: error, code: error.code }, 'Backup operation failed');
+      const status = error.code === 'BACKUP_NOT_FOUND' ? 404 : 409;
+      return reply.code(status).send(apiError(error.code, error.message));
     }
 
     request.log.error({ err: error }, 'Request failed');
