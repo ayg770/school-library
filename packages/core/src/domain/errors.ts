@@ -8,7 +8,15 @@ export type DomainErrorCode =
   | 'DUPLICATE_BARCODE'
   | 'DUPLICATE_VALUE'
   | 'REFERENCE_NOT_FOUND'
-  | 'INVALID_PARENT';
+  | 'INVALID_PARENT'
+  // Circulation (Phase 2)
+  | 'COPY_NOT_FOUND'
+  | 'COPY_ALREADY_ON_LOAN'
+  | 'COPY_NOT_AVAILABLE'
+  | 'STUDENT_INACTIVE'
+  | 'LOAN_LIMIT_REACHED'
+  | 'NOT_ON_LOAN'
+  | 'LOAN_ALREADY_RETURNED';
 
 const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   NOT_FOUND: 404,
@@ -17,6 +25,13 @@ const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   DUPLICATE_VALUE: 409,
   REFERENCE_NOT_FOUND: 400,
   INVALID_PARENT: 400,
+  COPY_NOT_FOUND: 404,
+  COPY_ALREADY_ON_LOAN: 409,
+  COPY_NOT_AVAILABLE: 409,
+  STUDENT_INACTIVE: 409,
+  LOAN_LIMIT_REACHED: 409,
+  NOT_ON_LOAN: 409,
+  LOAN_ALREADY_RETURNED: 409,
 };
 
 export class DomainError extends Error {

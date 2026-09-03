@@ -43,12 +43,19 @@ describe('upgrading an existing database', () => {
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run('staff-1', 'librarian', 'hash', 'ספרנית', 'librarian', 'then', 'then');
 
-    // Now run the current release's full set.
+    // Now run the current release's full set. Deliberately not pinned to a
+    // version number: every future phase adds a migration, and this test must
+    // keep asserting "an old database is brought forward" rather than needing
+    // an edit each time.
     const report = runMigrations(db, migrations);
+    const latest = Math.max(...migrations.map((migration) => migration.version));
+    const expectedPending = migrations
+      .map((migration) => migration.version)
+      .filter((version) => version > 1);
 
     expect(report.currentVersion).toBe(1);
-    expect(report.applied.map((entry) => entry.version)).toEqual([2]);
-    expect(getSchemaVersion(db)).toBe(2);
+    expect(report.applied.map((entry) => entry.version)).toEqual(expectedPending);
+    expect(getSchemaVersion(db)).toBe(latest);
 
     // Pre-existing data survived.
     const settings = readSettings(db);

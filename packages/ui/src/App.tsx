@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import { BooksScreen } from './screens/BooksScreen.js';
 import { CatalogSetupScreen } from './screens/CatalogSetupScreen.js';
+import { CheckoutScreen } from './screens/CheckoutScreen.js';
+import { LoansScreen } from './screens/LoansScreen.js';
+import { ReturnScreen } from './screens/ReturnScreen.js';
 import { StudentsScreen } from './screens/StudentsScreen.js';
 import { SupportScreen } from './screens/SupportScreen.js';
 
-type ScreenId = 'students' | 'books' | 'setup' | 'support';
+type ScreenId = 'checkout' | 'return' | 'loans' | 'students' | 'books' | 'setup' | 'support';
 
+// Ordered as §25 lists them: the two daily tasks first.
 const SCREENS: ReadonlyArray<{ id: ScreenId; label: string }> = [
+  { id: 'checkout', label: 'השאלה' },
+  { id: 'return', label: 'החזרה' },
+  { id: 'loans', label: 'השאלות' },
   { id: 'students', label: 'תלמידים' },
   { id: 'books', label: 'ספרים' },
   { id: 'setup', label: 'כיתות, קטגוריות ומדפים' },
@@ -14,9 +21,9 @@ const SCREENS: ReadonlyArray<{ id: ScreenId; label: string }> = [
 ];
 
 /** Screens from PRODUCT_SPEC.md §25 that later phases add. */
-const PLANNED_SCREENS = ['השאלה', 'החזרה', 'קליטת ספרים מהמדף', 'דוחות', 'ייבוא', 'גיבוי'];
+const PLANNED_SCREENS = ['קליטת ספרים מהמדף', 'דוחות', 'ייבוא', 'גיבוי'];
 
-const DEFAULT_SCREEN: ScreenId = 'students';
+const DEFAULT_SCREEN: ScreenId = 'checkout';
 
 function screenFromHash(): ScreenId {
   const id = window.location.hash.replace(/^#\/?/, '');
@@ -43,7 +50,7 @@ export function App(): JSX.Element {
     <>
       <header className="app-header">
         <h1>ספריית בית הספר</h1>
-        <span className="phase-tag">שלב 1 — קטלוג</span>
+        <span className="phase-tag">שלב 2 — השאלה והחזרה</span>
       </header>
 
       <nav className="nav" aria-label="ניווט ראשי">
@@ -60,6 +67,9 @@ export function App(): JSX.Element {
       </nav>
 
       <main>
+        {screen === 'checkout' && <CheckoutScreen />}
+        {screen === 'return' && <ReturnScreen />}
+        {screen === 'loans' && <LoansScreen />}
         {screen === 'students' && <StudentsScreen />}
         {screen === 'books' && <BooksScreen />}
         {screen === 'setup' && <CatalogSetupScreen />}

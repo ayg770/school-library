@@ -8,6 +8,33 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Phase 2: Circulation
+
+Schema version: **3**
+
+- Migration `003-circulation`: `loans` and `audit_log`.
+- One open loan per copy, enforced by a partial unique index rather than by
+  application code — concurrent scans cannot both succeed.
+- Checkout: due date from `default_loan_days`, per-student loan limit, and
+  refusal for an inactive student or a copy marked lost or withdrawn. A damaged
+  copy still circulates.
+- Return on the book scan alone; the borrower is already on the loan (§11).
+- Renewal, which extends from today when a loan is already late so a renewal
+  always grants the full period.
+- Every circulation change writes its audit entry in the same transaction, so
+  the log cannot disagree with the data (§23).
+- Overdue is derived from the due date and the absence of a return, never
+  stored.
+- API: `POST /api/v1/circulation/{checkout,checkin,renew}`, `GET /api/v1/loans`,
+  and `GET /api/v1/students/:publicId/library-summary` — the last one already
+  in the shape the future integration endpoint returns (§8).
+- The book card now shows who holds each copy and when it is due (§16).
+- Screens: השאלה (find the student once, then scan book after book, keyboard
+  only), החזרה (book scan alone), and השאלות with an overdue view, renewal and
+  return.
+- 45 further automated tests, including one that bypasses the domain entirely
+  to prove the database itself rejects a second open loan.
+
 ### Added — Phase 1: Core catalog
 
 Schema version: **2**

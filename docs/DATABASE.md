@@ -33,9 +33,9 @@ Applied on every open, in `packages/core/src/db/open.ts`:
 
 In-memory databases skip WAL; they have no journal file to keep.
 
-## Current schema — version 2
+## Current schema — version 3
 
-Migrations `001-initial` and `002-catalog`.
+Migrations `001-initial`, `002-catalog` and `003-circulation`.
 
 ### `schema_migrations`
 Owned by the migration runner, not by any migration.
@@ -153,6 +153,52 @@ unreturned row in `loans`, which Phase 2 adds (§7).
 
 Indexes: `book_id`, `shelf_location_id`, `condition_status`, `verified_at`,
 plus the unique index on `barcode`.
+
+## Migration 003 — circulation
+
+`circulation-loans-and-audit`.
+
+### `loans`
+Permanent circulation history.
+
+`public_id`, `copy_id` → `book_copies`, `student_id` → `students`,
+`checkout_at`, `due_at`, `returned_at`, `checkout_by_user_id`,
+`return_by_user_id`, `renewal_count`, `notes`, timestamps.
+
+`returned_at IS NULL` means the loan is open. A returned loan is never deleted
+during normal operation (§7).
+
+**One open loan per copy is enforced by the database:**
+
+```sql
+CREATE UNIQUE INDEX idx_loans_one_active_per_copy
+  ON loans (copy_id) WHERE returned_at IS NULL;
+```
+
+A partial unique index rather than an application check, so two librarians
+scanning the same book at the same moment cannot both succeed whatever the
+code does. The domain checks availability first only to produce a good message;
+the index is the guarantee.
+
+Indexes: `student_id`, `copy_id`, `checkout_at`, and a partial index on `due_at`
+restricted to open loans — the overdue report never looks at anything else.
+
+There is still no `is_on_loan` column anywhere. Loan state is derived.
+
+### `audit_log`
+`event_id` (unique), `user_id`, `action`, `entity_type`, `entity_id`,
+`old_data_json`, `new_data_json`, `created_at`.
+
+Entries are written **inside the same transaction as the change they describe**,
+so the log cannot disagree with the data. A rolled-back checkout takes its
+audit entry with it.
+
+Actions recorded so far: `loan.checked_out`, `loan.returned`, `loan.renewed`.
+
+Indexes: `(entity_type, entity_id)`, `created_at`, `action`.
+
+`checkout_by_user_id` and `audit_log.user_id` are null until staff sign in.
+Threading a real identity through changes no logic here.
 
 ## Conventions for every future table
 

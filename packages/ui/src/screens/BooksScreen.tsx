@@ -3,6 +3,7 @@ import {
   ApiError,
   CONDITION_LABELS,
   api,
+  formatDate,
   type Book,
   type BookDetail,
   type Category,
@@ -323,7 +324,8 @@ export function BooksScreen(): JSX.Element {
                     <th>ברקוד</th>
                     <th>מיקום</th>
                     <th>מצב</th>
-                    <th>הערה</th>
+                    <th>מושאל ל</th>
+                    <th>להחזרה עד</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -332,7 +334,16 @@ export function BooksScreen(): JSX.Element {
                       <td className="value-ltr">{copy.barcode}</td>
                       <td>{copy.shelfName ?? '—'}</td>
                       <td>{CONDITION_LABELS[copy.conditionStatus]}</td>
-                      <td>{copy.conditionNote ?? '—'}</td>
+                      <td>
+                        {copy.onLoan ? (
+                          copy.borrowerName
+                        ) : (
+                          <span className="status status-ok">על המדף</span>
+                        )}
+                      </td>
+                      <td className={copy.overdue ? 'overdue-text' : ''}>
+                        {copy.onLoan ? formatDate(copy.dueAt) : '—'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
