@@ -8,6 +8,36 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Phase 4: Import from a file
+
+Schema version: **4**
+
+- Migration `004-imports`: `import_batches` and `import_rows`.
+- CSV and XLSX, read as text throughout so a barcode of `0000123` cannot become
+  the number 123.
+- CSV encoding is detected: a UTF-8 BOM is honoured, and bytes that are not
+  valid UTF-8 are decoded as windows-1255 — which is what Excel on a Hebrew
+  Windows writes by default.
+- Columns are proposed automatically from the file's own headers, in Hebrew and
+  English, and the librarian confirms or corrects them.
+- Nothing reaches the catalogue until the final step (§13). Every row is staged,
+  validated and reported first.
+- Detected: a missing required value, a barcode duplicated inside the file, a
+  barcode already in the catalogue, a barcode containing whitespace, an invalid
+  ISBN, a name that already exists, and blank rows.
+- Several rows sharing a title become one book with several copies (§6), matched
+  on ISBN first and title plus author second.
+- Classes, categories and shelf locations named in the file are created as
+  needed, and the report says which.
+- A row that fails at commit is recorded as failed and the rest continue: one
+  bad record in a three-thousand-row catalogue does not cost the whole import.
+- A four-step wizard: choose, map, review, commit.
+- **Fixed:** a POST with no body was sent with a JSON content type and rejected
+  by the server, which broke "back up now" and "run the import" from the
+  browser. The client now omits the header when there is no body, and the
+  server accepts an empty body on a request that takes no parameters.
+- 32 further automated tests.
+
 ### Added — Phase 5: Backup and update safety
 
 Schema version: **3** (unchanged)

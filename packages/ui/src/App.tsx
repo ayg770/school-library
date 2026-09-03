@@ -3,6 +3,7 @@ import { BackupScreen } from './screens/BackupScreen.js';
 import { BooksScreen } from './screens/BooksScreen.js';
 import { CatalogSetupScreen } from './screens/CatalogSetupScreen.js';
 import { CheckoutScreen } from './screens/CheckoutScreen.js';
+import { ImportScreen } from './screens/ImportScreen.js';
 import { LoansScreen } from './screens/LoansScreen.js';
 import { ReturnScreen } from './screens/ReturnScreen.js';
 import { StudentsScreen } from './screens/StudentsScreen.js';
@@ -15,6 +16,7 @@ type ScreenId =
   | 'students'
   | 'books'
   | 'setup'
+  | 'import'
   | 'backup'
   | 'support';
 
@@ -26,12 +28,13 @@ const SCREENS: ReadonlyArray<{ id: ScreenId; label: string }> = [
   { id: 'students', label: 'תלמידים' },
   { id: 'books', label: 'ספרים' },
   { id: 'setup', label: 'כיתות, קטגוריות ומדפים' },
+  { id: 'import', label: 'ייבוא' },
   { id: 'backup', label: 'גיבוי' },
   { id: 'support', label: 'הגדרות ותמיכה' },
 ];
 
 /** Screens from PRODUCT_SPEC.md §25 that later phases add. */
-const PLANNED_SCREENS = ['קליטת ספרים מהמדף', 'דוחות', 'ייבוא'];
+const PLANNED_SCREENS = ['קליטת ספרים מהמדף', 'דוחות'];
 
 const DEFAULT_SCREEN: ScreenId = 'checkout';
 
@@ -60,7 +63,7 @@ export function App(): JSX.Element {
     <>
       <header className="app-header">
         <h1>ספריית בית הספר</h1>
-        <span className="phase-tag">שלב 5 — גיבוי ושחזור</span>
+        <span className="phase-tag">שלב 4 — ייבוא מקובץ</span>
       </header>
 
       <nav className="nav" aria-label="ניווט ראשי">
@@ -83,6 +86,7 @@ export function App(): JSX.Element {
         {screen === 'students' && <StudentsScreen />}
         {screen === 'books' && <BooksScreen />}
         {screen === 'setup' && <CatalogSetupScreen />}
+        {screen === 'import' && <ImportScreen />}
         {screen === 'backup' && <BackupScreen />}
         {screen === 'support' && <SupportScreen />}
 

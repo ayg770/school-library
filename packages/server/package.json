@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "start": "tsx src/main.ts",
     "build": "tsc --build"
   },
   "dependencies": {
+    "@fastify/multipart": "9.0.1",
     "@school-library/core": "*",
     "fastify": "5.2.0",
     "zod": "3.24.1"

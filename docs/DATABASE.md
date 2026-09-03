@@ -33,9 +33,9 @@ Applied on every open, in `packages/core/src/db/open.ts`:
 
 In-memory databases skip WAL; they have no journal file to keep.
 
-## Current schema — version 3
+## Current schema — version 4
 
-Migrations `001-initial`, `002-catalog` and `003-circulation`.
+Migrations `001-initial`, `002-catalog`, `003-circulation` and `004-imports`.
 
 ### `schema_migrations`
 Owned by the migration runner, not by any migration.
@@ -199,6 +199,32 @@ Indexes: `(entity_type, entity_id)`, `created_at`, `action`.
 
 `checkout_by_user_id` and `audit_log.user_id` are null until staff sign in.
 Threading a real identity through changes no logic here.
+
+## Migration 004 — the import staging area
+
+`import-batches-and-rows`.
+
+### `import_batches`
+`public_id`, `filename`, `import_type` (`students` or `books`), `status`
+(`parsed` → `validated` → `committed`, or `cancelled`), `mapping_json`,
+`started_at`, `finished_at`, and the four counts §7 asks for.
+
+### `import_rows`
+`batch_id` → `import_batches` (cascade), `row_number`, `raw_data_json`,
+`normalized_data_json`, `status`, `error_json`, `created_entity_id`.
+
+Row 0 holds the file's header row, so a batch stays a complete record of the
+file even once the original is gone.
+
+Both what the file said (`raw_data_json`) and what it was understood to mean
+(`normalized_data_json`) are kept. **A file is never applied straight to the
+catalogue** (§13): every row is staged and judged first, so the conflicts are
+shown while they are still free to fix, and a completed import can be explained
+afterwards.
+
+Row statuses: `pending` → `ready` / `warning` / `error` / `skipped`, then
+`imported` or `failed` once committed. A `warning` row is imported; an `error`
+row is not.
 
 ## Conventions for every future table
 
