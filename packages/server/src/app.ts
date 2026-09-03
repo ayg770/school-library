@@ -1,4 +1,5 @@
 import multipart from '@fastify/multipart';
+import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { BackupError, DomainError, type AppContext } from '@school-library/core';
 import { registerAuth } from './auth.js';
@@ -21,13 +22,23 @@ import { registerTaxonomyRoutes } from './routes/taxonomy.js';
  * a browser on the local network, and a future integration client all arrive
  * here, so a rule enforced in this layer is enforced for all of them.
  */
-export function buildApp(context: AppContext): FastifyInstance {
+export interface BuildAppOptions {
+  /** Directory of the built interface, served at the root when given. */
+  readonly uiDir?: string;
+  readonly trustProxy?: boolean;
+}
+
+export function buildApp(context: AppContext, options: BuildAppOptions = {}): FastifyInstance {
   // Widened to FastifyBaseLogger so Fastify keeps its default logger generic.
   // A pino logger satisfies that interface; without the widening every route
   // helper would have to be generic over pino's concrete Logger type.
   const app = Fastify({
     loggerInstance: context.logger as FastifyBaseLogger,
     disableRequestLogging: false,
+    // Behind a hosting platform's proxy, the original scheme and address
+    // arrive in headers. Without this the service would mark the session
+    // cookie insecure on exactly the deployments that need it secure.
+    trustProxy: options.trustProxy ?? false,
   });
 
   // Catalogue files arrive as multipart uploads (§13). Registered before the
@@ -67,9 +78,19 @@ export function buildApp(context: AppContext): FastifyInstance {
   registerBackupRoutes(app, context);
   registerImportRoutes(app, context);
 
-  app.setNotFoundHandler(async (request, reply) =>
-    reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`)),
-  );
+  if (options.uiDir !== undefined) {
+    void app.register(fastifyStatic, { root: options.uiDir, wildcard: false });
+  }
+
+  app.setNotFoundHandler(async (request, reply) => {
+    // An unknown API path is an error. An unknown page path is the interface's
+    // own routing, so it gets the application shell and resolves it in the
+    // browser.
+    if (options.uiDir !== undefined && !request.url.startsWith('/api/') && request.method === 'GET') {
+      return reply.sendFile('index.html');
+    }
+    return reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`));
+  });
 
   // §24: a user sees a short message, never a stack trace. The detail goes to
   // the log, where §21 keeps it free of secrets.

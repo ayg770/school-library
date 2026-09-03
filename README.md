@@ -45,6 +45,7 @@ npm run lint
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | החלטות ארכיטקטורה ולמה התקבלו |
 | [`docs/DATABASE.md`](docs/DATABASE.md) | הסכימה הנוכחית ומדיניות המיגרציות |
 | [`docs/INTEGRATION.md`](docs/INTEGRATION.md) | הגבול מול מערכת התלמידים |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | העלאה לאונליין: מה צריך מהאחסון ואיך |
 | [`CHANGELOG.md`](CHANGELOG.md) | מה השתנה בכל גרסה |
 
 ## שלבים
@@ -71,7 +72,7 @@ npm run lint
 
 | מה | למה זה חשוב |
 |---|---|
-| העלאה לאונליין | צריך אחסון עם דיסק קבוע |
+| בחירת אחסון | הקוד מוכן להעלאה — ראה [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 | מסך בדיקת סורק וקליטה מהמדף | כשיהיה סורק ביד |
 | דוחות וייצוא | נוחות, לא חוסם |
 
