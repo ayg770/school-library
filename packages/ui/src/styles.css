@@ -1,0 +1,168 @@
+/*
+ * PRODUCT_SPEC.md §25: Hebrew, true RTL.
+ * ARCHITECTURE.md AD-5: the font is vendored, never fetched at runtime.
+ */
+@font-face {
+  font-family: 'Noto Sans Hebrew';
+  src: url('./assets/fonts/NotoSansHebrew-Variable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #d8dbe0;
+  --text: #16181d;
+  --text-muted: #5c6470;
+  --accent: #1f4d8f;
+  --ok: #1a7f4b;
+  --ok-bg: #e6f4ec;
+  --warn: #8a6100;
+  --warn-bg: #fdf3dd;
+  --error: #a3261f;
+  --error-bg: #fbeae9;
+  --radius: 8px;
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.app-header .phase-tag {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+}
+
+main {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) 1fr;
+  gap: 0.625rem 1.25rem;
+  margin: 0;
+}
+
+.info-grid dt {
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+}
+
+.info-grid dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Paths and versions are machine values: keep them LTR inside an RTL page. */
+.value-ltr {
+  direction: ltr;
+  text-align: right;
+  unicode-bidi: isolate;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 0.875rem;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.status::before {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-ok { color: var(--ok); background: var(--ok-bg); }
+.status-neutral { color: var(--text-muted); background: #eceef1; }
+.status-warn { color: var(--warn); background: var(--warn-bg); }
+.status-error { color: var(--error); background: var(--error-bg); }
+
+.notice {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+}
+
+.notice-error {
+  color: var(--error);
+  background: var(--error-bg);
+  border: 1px solid color-mix(in srgb, var(--error) 25%, transparent);
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.625rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-grid li {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  text-align: center;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 0.875rem;
+}

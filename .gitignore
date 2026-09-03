@@ -25,6 +25,7 @@ data/
 # --- Build output & deps ---
 node_modules/
 dist/
+dist-types/
 build/
 out/
 release/
