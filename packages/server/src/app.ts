@@ -1,3 +1,4 @@
+import multipart from '@fastify/multipart';
 import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import { BackupError, DomainError, type AppContext } from '@school-library/core';
 import { apiError } from './errors.js';
@@ -6,6 +7,7 @@ import { registerBookRoutes } from './routes/books.js';
 import { registerCirculationRoutes } from './routes/circulation.js';
 import { registerClassRoutes } from './routes/classes.js';
 import { registerHealthRoutes } from './routes/health.js';
+import { registerImportRoutes } from './routes/imports.js';
 import { registerStudentRoutes } from './routes/students.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
@@ -26,6 +28,28 @@ export function buildApp(context: AppContext): FastifyInstance {
     disableRequestLogging: false,
   });
 
+  // Catalogue files arrive as multipart uploads (§13). Registered before the
+  // routes so the import route can read the file off the request.
+  void app.register(multipart, { limits: { files: 1, fileSize: 20 * 1024 * 1024 } });
+
+  // A POST that takes no parameters — "back up now", "run this import" — may
+  // arrive with a JSON content type and an empty body. Fastify's default parser
+  // rejects that, which is a needless failure for a request that is complete.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_request, body, done) => {
+    const text = typeof body === 'string' ? body.trim() : '';
+    if (text === '') {
+      done(null, {});
+      return;
+    }
+    try {
+      done(null, JSON.parse(text));
+    } catch {
+      const error = new Error('גוף הבקשה אינו JSON תקין.') as Error & { statusCode?: number };
+      error.statusCode = 400;
+      done(error, undefined);
+    }
+  });
+
   registerHealthRoutes(app, context);
   registerSystemRoutes(app, context);
   registerClassRoutes(app, context);
@@ -34,6 +58,7 @@ export function buildApp(context: AppContext): FastifyInstance {
   registerBookRoutes(app, context);
   registerCirculationRoutes(app, context);
   registerBackupRoutes(app, context);
+  registerImportRoutes(app, context);
 
   app.setNotFoundHandler(async (request, reply) =>
     reply.code(404).send(apiError('NOT_FOUND', `לא נמצאה כתובת ${request.method} ${request.url}`)),

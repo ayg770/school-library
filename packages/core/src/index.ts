@@ -135,3 +135,30 @@ export {
   type BackupReason,
   type RestoreResult,
 } from './backup.js';
+
+// --- Import (Phase 4) ---
+export { IMPORT_FIELDS, suggestMapping, type ImportType, type TargetField } from './import/fields.js';
+export {
+  decodeText,
+  detectFormat,
+  parseCsvBuffer,
+  parseFile,
+  parseXlsxBuffer,
+  type ParsedSheet,
+  type SourceFormat,
+} from './import/parse.js';
+export {
+  cancelImportBatch,
+  commitImportBatch,
+  createImportBatch,
+  getImportBatch,
+  listImportBatches,
+  listImportRows,
+  validateImportBatch,
+  type BatchStatus,
+  type ColumnMapping,
+  type CommitReport,
+  type ImportBatch,
+  type ImportRow,
+  type RowStatus,
+} from './import/runner.js';

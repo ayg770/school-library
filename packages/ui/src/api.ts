@@ -159,6 +159,55 @@ export interface BackupCheck {
   problems: string[];
 }
 
+export type ImportType = 'students' | 'books';
+export type RowStatus = 'pending' | 'ready' | 'warning' | 'error' | 'skipped' | 'imported' | 'failed';
+
+export interface TargetField {
+  key: string;
+  label: string;
+  required: boolean;
+  hint?: string;
+}
+
+export interface ImportBatch {
+  publicId: string;
+  filename: string;
+  importType: ImportType;
+  status: 'parsed' | 'validated' | 'committed' | 'cancelled';
+  mapping: Record<string, number> | null;
+  headers: string[];
+  totalRows: number;
+  successCount: number;
+  warningCount: number;
+  errorCount: number;
+}
+
+export interface ImportRow {
+  rowNumber: number;
+  raw: string[];
+  normalized: Record<string, string> | null;
+  status: RowStatus;
+  problems: string[];
+}
+
+export interface UploadResult {
+  batch: ImportBatch;
+  suggestedMapping: Record<string, number>;
+  fields: TargetField[];
+  encoding?: string;
+  preview: ImportRow[];
+}
+
+export interface CommitReport {
+  batch: ImportBatch;
+  imported: number;
+  failed: number;
+  skipped: number;
+  createdClasses: string[];
+  createdCategories: string[];
+  createdShelves: string[];
+}
+
 export interface PagedResult<T> {
   items: T[];
   total: number;
@@ -185,7 +234,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(path, {
       ...init,
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json', ...init?.headers },
+      headers: {
+        Accept: 'application/json',
+        // Only when there is something to describe. Declaring a JSON body and
+        // sending none is rejected by the server, which is what a POST with no
+        // payload — "back up now", "run the import" — would otherwise do.
+        ...(init?.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiError('SERVICE_UNREACHABLE', 'אין תקשורת עם השירות המקומי. ודא שהוא פועל.');
@@ -260,6 +316,33 @@ export const api = {
     }),
   renew: (loanPublicId: string) =>
     request<Loan>('/api/v1/circulation/renew', { method: 'POST', body: JSON.stringify({ loanPublicId }) }),
+
+  uploadImport: async (file: File, importType: ImportType): Promise<UploadResult> => {
+    const form = new FormData();
+    form.set('importType', importType);
+    form.set('file', file);
+
+    // No Content-Type header: the browser sets it with the multipart boundary.
+    const response = await fetch('/api/v1/imports', { method: 'POST', body: form });
+    const body: unknown = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      const error = (body as { error?: { code?: string; message?: string } } | null)?.error;
+      throw new ApiError(error?.code ?? 'UNKNOWN', error?.message ?? 'העלאת הקובץ נכשלה.');
+    }
+    return body as UploadResult;
+  },
+  getImport: (publicId: string) =>
+    request<{ batch: ImportBatch; fields: TargetField[] }>(`/api/v1/imports/${publicId}`),
+  getImportRows: (publicId: string, status?: RowStatus) =>
+    request<PagedResult<ImportRow>>(`/api/v1/imports/${publicId}/rows${query({ status, limit: 200 })}`),
+  validateImport: (publicId: string, mapping: Record<string, number>) =>
+    request<ImportBatch>(`/api/v1/imports/${publicId}/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ mapping }),
+    }),
+  commitImport: (publicId: string) =>
+    request<CommitReport>(`/api/v1/imports/${publicId}/commit`, { method: 'POST' }),
 
   listBackups: () => request<{ items: BackupFile[] }>('/api/v1/backups'),
   createBackup: () => request<BackupFile>('/api/v1/backups', { method: 'POST' }),

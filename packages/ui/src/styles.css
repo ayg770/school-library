@@ -486,3 +486,59 @@ table.data tr.is-inactive td { color: var(--text-muted); }
 .pick-list button:hover { background: #f0f2f5; }
 
 .overdue-text { color: var(--error); font-weight: 600; }
+
+/* --- Import wizard --- */
+.steps {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+  font-size: 0.9375rem;
+}
+
+.steps .step {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+}
+
+.steps .step[data-state='current'] { color: var(--accent); font-weight: 600; }
+.steps .step[data-state='done'] { color: var(--ok); }
+.steps .sep { color: var(--border); }
+
+.stat-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin: 0 0 1rem;
+  padding: 0.875rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #f7f8fa;
+}
+
+.stat .value { font-size: 1.5rem; font-weight: 700; line-height: 1.2; }
+.stat .label { font-size: 0.8125rem; color: var(--text-muted); }
+.stat-ok .value { color: var(--ok); }
+.stat-warn .value { color: var(--warn); }
+.stat-error .value { color: var(--error); }
+
+.map-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: 0 1.25rem;
+}
+
+.row-problem { color: var(--error); font-size: 0.875rem; }
+.row-warn { color: var(--warn); font-size: 0.875rem; }
+
+table.data td.sample {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

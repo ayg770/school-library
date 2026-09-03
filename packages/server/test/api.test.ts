@@ -65,6 +65,30 @@ describe('local service API', () => {
     expect(body.error.message.length).toBeGreaterThan(0);
   });
 
+  it('accepts a POST with a JSON content type and no body', async () => {
+    // The browser's fetch sends this shape for an action that takes no
+    // parameters. Rejecting it made "back up now" and "run the import" fail.
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/backups',
+      headers: { 'content-type': 'application/json' },
+      payload: '',
+    });
+
+    expect(response.statusCode).toBe(201);
+  });
+
+  it('still rejects a malformed JSON body', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/books',
+      headers: { 'content-type': 'application/json' },
+      payload: '{ this is not json',
+    });
+
+    expect(response.statusCode).toBe(400);
+  });
+
   it('never exposes SQL or internals in an error body (§9)', async () => {
     const response = await app.inject({ method: 'GET', url: '/api/v1/does-not-exist' });
     expect(response.body.toUpperCase()).not.toContain('SELECT');
