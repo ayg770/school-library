@@ -20,7 +20,10 @@ async function main(): Promise<void> {
     );
   }
 
-  const app = buildApp(context);
+  const app = buildApp(context, {
+    ...(config.uiDir === undefined ? {} : { uiDir: config.uiDir }),
+    trustProxy: config.trustProxy,
+  });
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info({ signal }, 'Shutting down');

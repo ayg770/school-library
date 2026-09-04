@@ -26,6 +26,7 @@ data/
 node_modules/
 dist/
 dist-types/
+*.mjs.map
 build/
 out/
 release/

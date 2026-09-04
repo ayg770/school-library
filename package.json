@@ -13,20 +13,22 @@
     "dev": "npm run dev --workspaces --if-present",
     "dev:server": "npm run dev -w @school-library/server",
     "dev:ui": "npm run dev -w @school-library/ui",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:server && vite build packages/ui",
     "typecheck": "tsc --build --force",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "build:server": "esbuild packages/server/src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=packages/server/dist/server.mjs --packages=external --alias:@school-library/core=./packages/core/src/index.ts"
   },
   "devDependencies": {
-    "@types/node": "22.10.2",
-    "typescript": "5.7.2",
-    "tsx": "4.19.2",
-    "vitest": "2.1.8",
-    "eslint": "9.17.0",
-    "typescript-eslint": "8.18.1",
     "@eslint/js": "9.17.0",
-    "vite": "5.4.11"
+    "@types/node": "22.10.2",
+    "esbuild": "0.24.2",
+    "eslint": "9.17.0",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.18.1",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
   },
   "overrides": {
     "vite": "5.4.11"
