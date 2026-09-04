@@ -184,3 +184,7 @@ export {
   type StaffUser,
   type UpdateStaffUserInput,
 } from './domain/auth.js';
+
+// --- Home screen ---
+export { getDashboardSummary, type DashboardSummary } from './domain/dashboard.js';
+export { intakeCopy, type IntakeInput, type IntakeResult } from './domain/intake.js';

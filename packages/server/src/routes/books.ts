@@ -6,6 +6,7 @@ import {
   findCopyByBarcode,
   getBook,
   getCopy,
+  intakeCopy,
   listBooks,
   listCopies,
   listLoans,
@@ -46,6 +47,15 @@ const copyBody = z.object({
 const copyUpdate = copyBody.omit({ bookPublicId: true }).partial().extend({
   active: z.boolean().optional(),
   verifiedAt: z.union([z.string(), z.null()]).optional(),
+});
+
+const intakeBody = z.object({
+  barcode: z.string(),
+  title: z.string(),
+  authorText: optionalTextField,
+  isbn13: optionalTextField,
+  categoryPublicId: optionalTextField,
+  shelfPublicId: optionalTextField,
 });
 
 const bookListQuery = z.object({
@@ -105,6 +115,15 @@ export function registerBookRoutes(app: FastifyInstance, context: AppContext): v
     const { publicId } = parseInput(params, request.params, 'כתובת');
     const body = parseInput(bookUpdate, request.body, 'ספר');
     return reply.send(updateBook(context.db, publicId, body));
+  });
+
+  /**
+   * Shelf intake (§12): one barcode, one title, one call. The title is found
+   * or created; the copy is always new.
+   */
+  app.post('/api/v1/intake', async (request, reply) => {
+    const body = parseInput(intakeBody, request.body, 'קליטת ספר');
+    return reply.code(201).send(intakeCopy(context.db, body));
   });
 
   app.get('/api/v1/copies', async (request, reply) => {

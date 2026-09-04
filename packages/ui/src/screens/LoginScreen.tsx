@@ -48,9 +48,14 @@ export function LoginScreen({ setupRequired, onSignedIn }: LoginScreenProps): JS
   }
 
   return (
-    <main style={{ maxWidth: '26rem', marginTop: '3rem' }}>
-      <section className="card">
-        <h2>{setupRequired ? 'הגדרה ראשונית' : 'כניסה למערכת'}</h2>
+    <div className="auth-screen">
+      <div className="auth-card">
+        <div className="brand">
+          <h1>ספריית בית הספר</h1>
+        </div>
+
+        <section className="card">
+          <h2>{setupRequired ? 'הגדרה ראשונית' : 'כניסה למערכת'}</h2>
 
         {setupRequired && (
           <p className="hint">
@@ -106,7 +111,8 @@ export function LoginScreen({ setupRequired, onSignedIn }: LoginScreenProps): JS
             </button>
           </div>
         </form>
-      </section>
-    </main>
+        </section>
+      </div>
+    </div>
   );
 }

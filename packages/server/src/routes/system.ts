@@ -1,5 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { readSettings, type AppContext, type AppSettings } from '@school-library/core';
+import {
+  getDashboardSummary,
+  readSettings,
+  type AppContext,
+  type AppSettings,
+} from '@school-library/core';
 
 export interface SystemInfoResponse {
   readonly appVersion: string;
@@ -25,6 +30,11 @@ export interface SystemInfoResponse {
  * behind the same authentication as everything else (§20).
  */
 export function registerSystemRoutes(app: FastifyInstance, context: AppContext): void {
+  /** The figures the home screen leads with. */
+  app.get('/api/v1/dashboard', async (_request, reply) =>
+    reply.send(getDashboardSummary(context.db)),
+  );
+
   app.get('/api/v1/system/info', async (_request, reply) => {
     const body: SystemInfoResponse = {
       appVersion: context.appVersion,
