@@ -8,6 +8,22 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Deployment packaging
+
+- The service can now serve the built interface itself (`UI_DIR`), so a
+  deployment is one process on one URL rather than two. Unknown page paths get
+  the application shell; unknown `/api` paths still get an error.
+- `TRUST_PROXY` makes the service read the original scheme from the proxy in
+  front of it. Without it the session cookie would lose its `Secure` flag on
+  exactly the deployments that need it — a bug that would only have appeared in
+  production.
+- A `Dockerfile` that builds the native module in one stage and ships only what
+  runs, with a health check.
+- `npm run build` bundles the server to a single file and builds the interface.
+  Only the workspace's own code is bundled: `exceljs` is CommonJS with dynamic
+  requires and `better-sqlite3` is native, and neither survives being inlined.
+- `docs/DEPLOYMENT.md`.
+
 ### Added — Sign-in and permissions
 
 Schema version: **5**
