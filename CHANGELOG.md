@@ -8,6 +8,25 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Checking for a new version
+
+Schema version: **5** (unchanged)
+
+- **"בדוק עדכון"** on the Settings and Support screen: it asks whether a newer
+  release has been published, and if so offers the download page. Installing
+  stays a decision a person makes.
+- Only when asked. Nothing polls in the background — the library computer works
+  offline by design, so a background check would either fail constantly or
+  interrupt a queue of children waiting to borrow books.
+- Being offline is reported as a plain statement, not a fault: "the program is
+  working normally in the meantime". The route always answers, and never with
+  an error the librarian has to interpret.
+- The comparison is by number, not by text, so 0.10.0 is newer than 0.9.0. A
+  pre-release is never offered, and a build newer than the last release is
+  never asked to downgrade.
+- `LIBRARY_RELEASES_URL` redirects the check, for a fork or for a test.
+- 14 further automated tests.
+
 ### Added — The Windows application
 
 Schema version: **5** (unchanged)

@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import {
+  checkForUpdate,
   getDashboardSummary,
   readSettings,
   type AppContext,
   type AppSettings,
+  type UpdateStatus,
 } from '@school-library/core';
 
 export interface SystemInfoResponse {
@@ -53,5 +55,22 @@ export function registerSystemRoutes(app: FastifyInstance, context: AppContext):
     };
 
     return reply.code(200).send(body);
+  });
+
+  /**
+   * `GET /api/v1/system/update` — is there a newer version to install?
+   *
+   * Only when asked. The library computer does not poll for updates in the
+   * background: it works offline by design (AD-8), and a check that runs on its
+   * own would either fail constantly or interrupt a queue of children waiting
+   * to borrow books.
+   *
+   * Never an error response. Being unable to reach the internet is the
+   * expected state of this machine, and the body says so in words the screen
+   * can show as it is.
+   */
+  app.get('/api/v1/system/update', async (_request, reply) => {
+    const status: UpdateStatus = await checkForUpdate({ currentVersion: context.appVersion });
+    return reply.code(200).send(status);
   });
 }

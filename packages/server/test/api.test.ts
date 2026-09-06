@@ -23,6 +23,33 @@ describe('local service API', () => {
     expect(body.appVersion).toBe(harness.context.appVersion);
   });
 
+  it('answers the update check even when nothing can be reached', async () => {
+    // Pointed at an address that cannot answer, which is what a library
+    // computer with no connection looks like. The route must still return a
+    // body the screen can show — never an error the librarian has to
+    // interpret (§23, ARCHITECTURE.md AD-8).
+    const previous = process.env.LIBRARY_RELEASES_URL;
+    process.env.LIBRARY_RELEASES_URL = 'http://127.0.0.1:1/releases';
+
+    try {
+      const response = await harness.get('/api/v1/system/update');
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json() as {
+        currentVersion: string;
+        updateAvailable: boolean;
+        problem: string | null;
+      };
+
+      expect(body.currentVersion).toBe(harness.context.appVersion);
+      expect(body.updateAvailable).toBe(false);
+      expect(body.problem).not.toBeNull();
+    } finally {
+      if (previous === undefined) delete process.env.LIBRARY_RELEASES_URL;
+      else process.env.LIBRARY_RELEASES_URL = previous;
+    }
+  });
+
   it('exposes the information the support screen needs (§24)', async () => {
     const response = await harness.get('/api/v1/system/info');
 

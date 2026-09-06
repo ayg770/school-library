@@ -51,6 +51,17 @@ Then, in order:
 3. **Add the remaining accounts** in the משתמשים screen — a librarian for daily
    work, and `read_only` for a browsing terminal.
 
+## Updating
+
+The **הגדרות ותמיכה** screen has a **בדוק עדכון** button. It asks whether a
+newer release has been published and, if so, offers the download page. Nothing
+checks on its own: this machine is meant to work without a connection, and a
+background check would spend most of its life failing.
+
+Installing over an existing copy does not touch the data — it lives outside the
+installation directory (see below). Taking a backup first is still the habit
+worth keeping.
+
 ## Where the data is
 
 Everything the library owns lives in one folder, outside the installation

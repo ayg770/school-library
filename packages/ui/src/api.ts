@@ -25,6 +25,15 @@ export interface SystemInfo {
   };
 }
 
+export interface UpdateStatus {
+  currentVersion: string;
+  latestVersion: string | null;
+  updateAvailable: boolean;
+  downloadUrl: string | null;
+  publishedAt: string | null;
+  problem: string | null;
+}
+
 export interface HealthStatus {
   status: 'ok';
   appVersion: string;
@@ -334,6 +343,8 @@ export const api = {
     request<HealthStatus>('/api/v1/health', signal ? { signal } : undefined),
   systemInfo: (signal?: AbortSignal) =>
     request<SystemInfo>('/api/v1/system/info', signal ? { signal } : undefined),
+
+  checkForUpdate: () => request<UpdateStatus>('/api/v1/system/update'),
 
   listClasses: () => request<PagedResult<SchoolClass>>('/api/v1/classes?limit=200'),
   createClass: (body: Record<string, unknown>) =>
