@@ -34,6 +34,28 @@ export interface UpdateStatus {
   problem: string | null;
 }
 
+export interface CategoryBreakdown {
+  publicId: string;
+  name: string;
+  titles: number;
+  copies: number;
+}
+
+export interface ShelfBreakdown {
+  publicId: string;
+  name: string;
+  room: string | null;
+  copies: number;
+  onLoan: number;
+}
+
+export interface CatalogueBreakdown {
+  categories: CategoryBreakdown[];
+  shelves: ShelfBreakdown[];
+  uncategorisedTitles: number;
+  unplacedCopies: number;
+}
+
 export interface HealthStatus {
   status: 'ok';
   appVersion: string;
@@ -365,8 +387,14 @@ export const api = {
   createShelf: (body: Record<string, unknown>) =>
     request<ShelfLocation>('/api/v1/shelf-locations', { method: 'POST', body: JSON.stringify(body) }),
 
-  listBooks: (params: { query?: string; categoryPublicId?: string; active?: boolean }) =>
-    request<PagedResult<Book>>(`/api/v1/books${query({ ...params, limit: 200 })}`),
+  listBooks: (params: {
+    query?: string;
+    categoryPublicId?: string;
+    shelfPublicId?: string;
+    active?: boolean;
+  }) => request<PagedResult<Book>>(`/api/v1/books${query({ ...params, limit: 200 })}`),
+
+  catalogueBreakdown: () => request<CatalogueBreakdown>('/api/v1/catalogue/breakdown'),
   getBook: (publicId: string) => request<BookDetail>(`/api/v1/books/${publicId}`),
   createBook: (body: Record<string, unknown>) =>
     request<Book>('/api/v1/books', { method: 'POST', body: JSON.stringify(body) }),

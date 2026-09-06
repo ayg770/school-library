@@ -54,6 +54,14 @@ export interface UpdateBookInput extends Partial<CreateBookInput> {
 export interface ListBooksOptions {
   readonly query?: string;
   readonly categoryPublicId?: string;
+  /**
+   * Titles with at least one copy on this shelf.
+   *
+   * A shelf holds copies, not titles, so this asks about the copies and
+   * reports the titles they belong to — which is what "what is on shelf 3"
+   * means to the person standing in front of it.
+   */
+  readonly shelfPublicId?: string;
   readonly active?: boolean;
   readonly limit?: number;
   readonly offset?: number;
@@ -272,6 +280,14 @@ export function listBooks(db: Db, options: ListBooksOptions = {}): { items: Book
   if (options.categoryPublicId !== undefined && options.categoryPublicId !== '') {
     where.push('cat.public_id = ?');
     params.push(options.categoryPublicId);
+  }
+  if (options.shelfPublicId !== undefined && options.shelfPublicId !== '') {
+    where.push(
+      `EXISTS (SELECT 1 FROM book_copies bc2
+                 JOIN shelf_locations sl ON sl.id = bc2.shelf_location_id
+                WHERE bc2.book_id = b.id AND sl.public_id = ?)`,
+    );
+    params.push(options.shelfPublicId);
   }
   if (options.active !== undefined) {
     where.push('b.active = ?');

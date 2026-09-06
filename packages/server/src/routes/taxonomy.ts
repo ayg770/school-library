@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   createCategory,
   createShelf,
+  getCatalogueBreakdown,
   getCategory,
   getShelf,
   listCategories,
@@ -32,6 +33,16 @@ const activeQuery = z.object({ active: queryFlag });
 const params = z.object({ publicId: z.string().min(1) });
 
 export function registerTaxonomyRoutes(app: FastifyInstance, context: AppContext): void {
+  /**
+   * `GET /api/v1/catalogue/breakdown` — the catalogue by subject and by shelf.
+   *
+   * One request rather than one per category: a library with thirty categories
+   * would otherwise make thirty round trips to draw one screen.
+   */
+  app.get('/api/v1/catalogue/breakdown', async (_request, reply) =>
+    reply.send(getCatalogueBreakdown(context.db)),
+  );
+
   app.get('/api/v1/categories', async (request, reply) => {
     const options = parseInput(activeQuery, request.query, 'סינון');
     return reply.send({ items: listCategories(context.db, options) });

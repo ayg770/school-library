@@ -32,6 +32,12 @@ export {
 } from './settings.js';
 export { createAppContext, type AppContext, type CreateAppContextOptions } from './context.js';
 export {
+  getCatalogueBreakdown,
+  type CatalogueBreakdown,
+  type CategoryBreakdown,
+  type ShelfBreakdown,
+} from './domain/browse.js';
+export {
   checkForUpdate,
   isNewerVersion,
   type CheckForUpdateOptions,
