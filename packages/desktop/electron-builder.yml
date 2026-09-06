@@ -27,6 +27,18 @@ asar: false
 npmRebuild: false
 buildDependenciesFromSource: false
 
+# Nothing is published from here.
+#
+# Left unset, electron-builder infers a GitHub publisher whenever a token is in
+# the environment, then tries to write auto-update metadata and fails because
+# the built application directory has no repository to infer one from. The
+# release is made by the workflow, from the files this produces.
+#
+# This is what will change when the application grows an "update" button: an
+# updater needs the metadata this switches off, and by then there will be a
+# repository configured to point it at.
+publish: null
+
 files:
   - '**/*'
 

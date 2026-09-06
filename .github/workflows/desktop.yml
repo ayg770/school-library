@@ -51,11 +51,11 @@ jobs:
         run: node build.mjs --platform=win32 --arch=x64
         working-directory: packages/desktop
 
+      # No token in the environment: electron-builder treats one as a
+      # request to publish, which is the workflow's job, not its own.
       - name: Package the installer
         run: npx electron-builder --config electron-builder.yml --win --publish never
         working-directory: packages/desktop
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Kept for a fortnight so a build can be tried without cutting a release.
       - uses: actions/upload-artifact@v4
