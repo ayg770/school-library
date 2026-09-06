@@ -158,6 +158,26 @@ describe('backup and restore', () => {
     expect(createBook(context!.db, { title: 'עדיין עובד' }).title).toBe('עדיין עובד');
   });
 
+  it('leaves a rejected backup file deletable, and unchanged', () => {
+    const bogus = path.join(context!.paths.backups, 'library-20260101T000000000Z-v3-manual.sqlite');
+    fs.writeFileSync(bogus, 'this is not a database');
+
+    const check = verifyBackup(bogus);
+    expect(check.ok).toBe(false);
+    expect(check.integrity).toBe('unreadable');
+
+    // A check that fails must not leave the file open. On Windows an open
+    // handle makes the file undeletable until the program exits, so a
+    // librarian could not remove or replace a backup that had just been
+    // rejected. This is the assertion that catches it.
+    expect(() => fs.unlinkSync(bogus)).not.toThrow();
+
+    // And a check must not modify what it is checking: opening a database
+    // normally puts it into WAL mode and writes these two files beside it.
+    expect(fs.existsSync(`${bogus}-wal`)).toBe(false);
+    expect(fs.existsSync(`${bogus}-shm`)).toBe(false);
+  });
+
   it('refuses a backup that does not exist', async () => {
     await expect(
       restoreBackup(context!.db, context!.paths, 'library-nope.sqlite', {

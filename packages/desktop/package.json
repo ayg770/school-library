@@ -1,0 +1,22 @@
+{
+  "name": "@school-library/desktop",
+  "productName": "School Library",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The library application as it runs on the library computer",
+  "main": "app/main.cjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "electron .",
+    "package": "electron-builder --config electron-builder.yml --publish never"
+  },
+  "dependencies": {
+    "better-sqlite3": "11.7.0"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8",
+    "prebuild-install": "7.1.3"
+  }
+}

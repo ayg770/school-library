@@ -17,7 +17,8 @@
     "typecheck": "tsc --build --force",
     "test": "vitest run",
     "lint": "eslint .",
-    "build:server": "esbuild packages/server/src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=packages/server/dist/server.mjs --packages=external --alias:@school-library/core=./packages/core/src/index.ts"
+    "build:server": "esbuild packages/server/src/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=packages/server/dist/server.mjs --packages=external --alias:@school-library/core=./packages/core/src/index.ts",
+    "build:desktop": "node packages/desktop/build.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.17.0",

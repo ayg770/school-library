@@ -8,6 +8,44 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — The Windows application
+
+Schema version: **5** (unchanged)
+
+- **A program for the library computer.** Electron shell in `packages/desktop`:
+  it starts the existing service in its own process on a port Windows assigns,
+  opens a window onto it, and closes the database on the way out. It adds no
+  domain rule, no screen and no route — everything it shows already existed.
+- **Offline by construction.** The database is on the library computer and the
+  application never needs the network to lend or return a book. This is the
+  question `ARCHITECTURE.md` AD-1 deferred, now answered — see AD-8.
+- The window is a browser onto the local service, with no Node, no
+  `contextBridge` and no database handle in the renderer (AD-2). A LAN browser
+  and the application window take the same path into the data.
+- One instance at a time. Two copies would be two sets of migrations against
+  one file; a second launch focuses the first window.
+- A short Hebrew menu: reload, zoom, and the data, backups and log folders —
+  what an application can offer and a web page cannot.
+- A failure to start shows a dialog naming the log file, because a library
+  computer has no console to print to.
+- **Two installers**, built by `.github/workflows/desktop.yml` on a Windows
+  runner: an ordinary setup program, and a single portable file that runs
+  without installing. Pushing a `v*` tag publishes both as a release.
+- `better-sqlite3` is fetched already compiled for Electron rather than rebuilt,
+  so a Windows installer needs no compiler on the build machine.
+- The application directory is built rather than collected — the packager is
+  handed a finished Electron application, not the workspace. Packaging a
+  monorepo is where these builds usually break.
+- `LIBRARY_SQLITE_BINDING` names the native module explicitly. A packaged
+  application is not laid out the way npm lays a project out, and a native
+  module that has to be searched for is a blank window with nothing in the log.
+- `createLogger({ console: false })` for a packaged program, which has no
+  console attached to write to.
+- **CI**: typecheck, lint and tests on every pull request, and the same checks
+  on Windows before an installer is built.
+- `docs/DESKTOP.md`, and `ARCHITECTURE.md` AD-8.
+- 4 further automated tests.
+
 ### Added — Home screen, shelf intake, and a design pass
 
 Schema version: **5** (unchanged)

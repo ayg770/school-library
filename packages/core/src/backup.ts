@@ -194,7 +194,7 @@ export function verifyBackup(file: string): BackupCheck {
 
   let db: Db | null = null;
   try {
-    db = openDatabase({ file });
+    db = openDatabase({ file, readonly: true });
 
     const rows = db.pragma('integrity_check') as Array<Record<string, unknown>>;
     const integrity = String(Object.values(rows[0] ?? {})[0] ?? 'unknown');
