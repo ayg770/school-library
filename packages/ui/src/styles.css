@@ -559,6 +559,19 @@ button.btn-link:disabled {
   flex: 1 1 14rem;
 }
 
+/*
+  A filter in a toolbar sizes to its content.
+
+  Form controls are full-width by default, which is right in a form and wrong
+  here: a full-width select pushes every other control onto its own line, and
+  the toolbar becomes a column of stacked bars instead of a row.
+*/
+.toolbar select {
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 9rem;
+}
+
 /* ==========================================================================
    Tables
    ========================================================================== */
@@ -974,4 +987,50 @@ table.data td.sample {
 .auth-card .brand h1 {
   font-size: 1.25rem;
   font-weight: 700;
+}
+
+/* --- Browsing the catalogue by subject and by shelf --- */
+
+.browse-grid {
+  display: grid;
+  /* Two columns where there is room, one where there is not — a shelf list on
+     a narrow window should stack, not shrink to an unreadable column. */
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--gap-4);
+}
+
+.browse-grid h3 {
+  margin: 0 0 var(--gap-2);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.browse-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.browse-list li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  padding: 0.375rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.browse-list li:last-child {
+  border-bottom: 0;
+}
+
+.browse-list .count {
+  flex: none;
+  white-space: nowrap;
+}
+
+.muted {
+  color: var(--text-muted);
 }

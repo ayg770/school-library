@@ -61,6 +61,7 @@ const intakeBody = z.object({
 const bookListQuery = z.object({
   query: z.string().optional(),
   categoryPublicId: z.string().optional(),
+  shelfPublicId: z.string().optional(),
   active: queryFlag,
   ...paginationQuery,
 });

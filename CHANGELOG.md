@@ -8,6 +8,27 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — Browsing the catalogue by subject and by shelf
+
+Schema version: **5** (unchanged)
+
+- **"הקטלוג במבט אחד"**: every category with its titles and copies, every shelf
+  with its copies and how many of them are out. Clicking one filters the list.
+- **Filters on the book list**, for category and for shelf location. They
+  narrow the search rather than replacing it, so "comics on shelf 3" is one
+  question and not three screens.
+- A shelf holds copies, not titles, so filtering by shelf asks about the copies
+  and reports the titles they belong to — and a book with three copies on one
+  shelf appears once, not three times.
+- **Titles with no category and copies with no shelf are counted.** This is
+  what makes an import checkable: if four hundred books arrive and none of them
+  landed in a category, the screen says so.
+- Every figure is counted from the books and copies themselves. Nothing is
+  stored, so nothing can drift.
+- **Fixed:** a filter in a toolbar was full-width, which pushed every other
+  control onto its own line and turned the row into a stack of bars.
+- 11 further automated tests.
+
 ### Added — Checking for a new version
 
 Schema version: **5** (unchanged)

@@ -4,8 +4,10 @@ import {
   CONDITION_LABELS,
   api,
   formatDate,
+  plural,
   type Book,
   type BookDetail,
+  type CatalogueBreakdown,
   type Category,
   type ShelfLocation,
 } from '../api.js';
@@ -45,8 +47,12 @@ const EMPTY_COPY: CopyForm = { barcode: '', shelfPublicId: '', conditionNote: ''
 export function BooksScreen(): JSX.Element {
   const [books, setBooks] = useState<Book[]>([]);
   const [searchText, setSearchText] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [shelfFilter, setShelfFilter] = useState('');
   const [categories, setCategories] = useState<Category[]>([]);
   const [shelves, setShelves] = useState<ShelfLocation[]>([]);
+  const [breakdown, setBreakdown] = useState<CatalogueBreakdown | null>(null);
+  const [browsing, setBrowsing] = useState(false);
 
   const [selected, setSelected] = useState<BookDetail | null>(null);
   const [editing, setEditing] = useState<Book | 'new' | null>(null);
@@ -61,17 +67,34 @@ export function BooksScreen(): JSX.Element {
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setBooks((await api.listBooks({ query: searchText })).items);
+      setBooks(
+        (
+          await api.listBooks({
+            query: searchText,
+            categoryPublicId: categoryFilter,
+            shelfPublicId: shelfFilter,
+          })
+        ).items,
+      );
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת הספרים נכשלה');
     }
-  }, [searchText]);
+  }, [searchText, categoryFilter, shelfFilter]);
+
+  const loadBreakdown = useCallback(async (): Promise<void> => {
+    try {
+      setBreakdown(await api.catalogueBreakdown());
+    } catch {
+      setBreakdown(null);
+    }
+  }, []);
 
   useEffect(() => {
     void api.listCategories().then((result) => setCategories(result.items)).catch(() => setCategories([]));
     void api.listShelves().then((result) => setShelves(result.items)).catch(() => setShelves([]));
-  }, []);
+    void loadBreakdown();
+  }, [loadBreakdown]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 200);
@@ -392,6 +415,106 @@ export function BooksScreen(): JSX.Element {
         </section>
       )}
 
+      {/*
+        The catalogue by subject and by shelf.
+        
+        Collapsed by default: the search box is what a librarian reaches for
+        most days. It earns its place the day a catalogue is imported, when the
+        two numbers at the bottom — titles with no category, copies with no
+        shelf — say whether the file landed the way it was meant to.
+      */}
+      {breakdown !== null && (
+        <section className="card">
+          <div className="card-header">
+            <h2>הקטלוג במבט אחד</h2>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setBrowsing((open) => !open);
+                if (!browsing) void loadBreakdown();
+              }}
+              aria-expanded={browsing}
+            >
+              {browsing ? 'הסתר' : 'הצג'}
+            </button>
+          </div>
+
+          {browsing && (
+            <>
+              <div className="browse-grid">
+                <div>
+                  <h3>לפי קטגוריה</h3>
+                  {breakdown.categories.length === 0 ? (
+                    <p className="empty">עדיין לא הוגדרו קטגוריות.</p>
+                  ) : (
+                    <ul className="browse-list">
+                      {breakdown.categories.map((category) => (
+                        <li key={category.publicId}>
+                          <button
+                            type="button"
+                            className="btn-link"
+                            onClick={() => {
+                              setCategoryFilter(category.publicId);
+                              setShelfFilter('');
+                              setSearchText('');
+                            }}
+                          >
+                            {category.name}
+                          </button>
+                          <span className="count">
+                            {plural(category.titles, 'ספר', 'ספרים')} · {category.copies} עותקים
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div>
+                  <h3>לפי מיקום פיזי</h3>
+                  {breakdown.shelves.length === 0 ? (
+                    <p className="empty">עדיין לא הוגדרו מדפים.</p>
+                  ) : (
+                    <ul className="browse-list">
+                      {breakdown.shelves.map((shelf) => (
+                        <li key={shelf.publicId}>
+                          <button
+                            type="button"
+                            className="btn-link"
+                            onClick={() => {
+                              setShelfFilter(shelf.publicId);
+                              setCategoryFilter('');
+                              setSearchText('');
+                            }}
+                          >
+                            {shelf.name}
+                            {shelf.room !== null && <span className="muted"> · {shelf.room}</span>}
+                          </button>
+                          <span className="count">
+                            {shelf.copies} עותקים
+                            {shelf.onLoan > 0 && ` · ${shelf.onLoan} מושאלים`}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              {(breakdown.uncategorisedTitles > 0 || breakdown.unplacedCopies > 0) && (
+                <p className="hint">
+                  {breakdown.uncategorisedTitles > 0 &&
+                    `${plural(breakdown.uncategorisedTitles, 'ספר', 'ספרים')} ללא קטגוריה. `}
+                  {breakdown.unplacedCopies > 0 &&
+                    `${breakdown.unplacedCopies} עותקים ללא מיקום מדף.`}
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
       <section className="card">
         <div className="card-header">
           <h2>ספרים</h2>
@@ -410,8 +533,52 @@ export function BooksScreen(): JSX.Element {
               aria-label="חיפוש ספרים"
             />
           </div>
-          <span className="count">{books.length} ספרים</span>
+
+          {/* The filters narrow the search rather than replacing it, so
+              "comics on shelf 3" is one question and not three screens. */}
+          <select
+            value={categoryFilter}
+            onChange={(event) => setCategoryFilter(event.target.value)}
+            aria-label="סינון לפי קטגוריה"
+          >
+            <option value="">כל הקטגוריות</option>
+            {categories.map((category) => (
+              <option key={category.publicId} value={category.publicId}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={shelfFilter}
+            onChange={(event) => setShelfFilter(event.target.value)}
+            aria-label="סינון לפי מיקום מדף"
+          >
+            <option value="">כל המדפים</option>
+            {shelves.map((shelf) => (
+              <option key={shelf.publicId} value={shelf.publicId}>
+                {shelf.name}
+              </option>
+            ))}
+          </select>
+
+          <span className="count">{plural(books.length, 'ספר', 'ספרים')}</span>
         </div>
+
+        {(categoryFilter !== '' || shelfFilter !== '') && (
+          <p className="hint" style={{ marginTop: 0 }}>
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setCategoryFilter('');
+                setShelfFilter('');
+              }}
+            >
+              נקה סינון
+            </button>
+          </p>
+        )}
 
         {books.length === 0 ? (
           <p className="empty">אין ספרים להצגה.</p>
