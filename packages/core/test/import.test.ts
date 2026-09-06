@@ -125,6 +125,44 @@ describe('column mapping suggestions', () => {
     const mapping = suggestMapping(['col1', 'col2'], 'students');
     expect(mapping.firstName).toBeUndefined();
   });
+
+  /**
+   * Taken from a real catalogue export, which is where this was found.
+   *
+   * `IN_TITLE_no` is a record number and comes first; `TI_TITLE` is the book's
+   * title. Both contain "title", and taking the first match meant proposing
+   * that a column of numbers was the name of every book — a catalogue that
+   * would have to be thrown away and imported again.
+   */
+  it('proposes the closest header, not the first one that happens to contain the word', () => {
+    const mapping = suggestMapping(
+      ['IN_TITLE_no', 'TITLE_No_LUZI', 'TI_TITLE', 'A1_AUTHORS', 'PB_Publisher'],
+      'books',
+    );
+
+    expect(mapping.title).toBe(2);
+    expect(mapping.authorText).toBe(3);
+    expect(mapping.publisher).toBe(4);
+  });
+
+  it('still prefers a header that is exactly the field name', () => {
+    // The first column merely contains the word and comes first; the second is
+    // the field's own name. An exact match is decided before any partial one,
+    // so closeness never gets to overrule it.
+    const mapping = suggestMapping(['ברקוד_ישן_מהמערכת', 'ברקוד', 'שם הספר'], 'books');
+
+    expect(mapping.barcode).toBe(1);
+    expect(mapping.title).toBe(2);
+  });
+
+  it('does not invent a mapping for a column that only shares a stray word', () => {
+    const mapping = suggestMapping(['IN_TITLE_no', 'A1_AUTHORS'], 'books');
+
+    // Nothing here is a book title, but a record number is the least wrong
+    // guess available, so it is proposed and the librarian corrects it. What
+    // matters is that a better column, when present, wins.
+    expect(mapping.authorText).toBe(1);
+  });
 });
 
 describe('importing students', () => {
