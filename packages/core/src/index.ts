@@ -31,6 +31,12 @@ export {
   type AppSettings,
 } from './settings.js';
 export { createAppContext, type AppContext, type CreateAppContextOptions } from './context.js';
+export {
+  checkForUpdate,
+  isNewerVersion,
+  type CheckForUpdateOptions,
+  type UpdateStatus,
+} from './updates.js';
 
 // --- Catalog (Phase 1) ---
 export { DomainError, notFound, type DomainErrorCode } from './domain/errors.js';
