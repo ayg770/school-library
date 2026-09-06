@@ -125,3 +125,81 @@ describe('database initialisation', () => {
     db.close();
   });
 });
+
+/**
+ * The two things the desktop shell needs from this layer.
+ *
+ * Both exist only because a packaged application is not laid out the way npm
+ * lays a project out, and both fail in ways that are invisible from a
+ * development machine — a missing native module, or a log written to a console
+ * that is not there. They are cheap to assert and expensive to discover.
+ */
+describe('running inside a packaged application', () => {
+  const previousBinding = process.env.LIBRARY_SQLITE_BINDING;
+
+  afterEach(() => {
+    if (previousBinding === undefined) delete process.env.LIBRARY_SQLITE_BINDING;
+    else process.env.LIBRARY_SQLITE_BINDING = previousBinding;
+  });
+
+  it('opens the database through an explicitly named native module', () => {
+    // The path npm produced — the same file, named rather than searched for.
+    process.env.LIBRARY_SQLITE_BINDING = require.resolve(
+      'better-sqlite3/build/Release/better_sqlite3.node',
+    );
+
+    const db = openDatabase({ file: ':memory:' });
+    try {
+      expect(db.prepare('select 1 as answer').get()).toEqual({ answer: 1 });
+    } finally {
+      db.close();
+    }
+  });
+
+  it('reports a named native module that is missing, rather than starting without one', () => {
+    process.env.LIBRARY_SQLITE_BINDING = '/nowhere/better_sqlite3.node';
+
+    expect(() => openDatabase({ file: ':memory:' })).toThrow();
+  });
+
+  it('ignores an empty binding path and falls back to the installed module', () => {
+    process.env.LIBRARY_SQLITE_BINDING = '   ';
+
+    const db = openDatabase({ file: ':memory:' });
+    try {
+      expect(readPragma(db, 'foreign_keys')).toBe(1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('writes to the log file with no console stream attached', async () => {
+    const temp = makeTempRoot();
+    const paths = resolveAppPaths(temp.root);
+    fs.mkdirSync(paths.logs, { recursive: true });
+    const logFile = `${paths.logs}/app.log`;
+
+    try {
+      const logger = createLogger({ logDirectory: paths.logs, console: false });
+      logger.error({ where: 'packaged' }, 'startup failed');
+
+      // The file stream is asynchronous by design — a log write must never
+      // block a scan — and it opens the file lazily, so wait for the line to
+      // land rather than assuming it already has.
+      logger.flush();
+
+      let contents = '';
+      for (let attempt = 0; attempt < 50 && !contents.includes('startup failed'); attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        contents = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
+      }
+
+      expect(contents).toContain('startup failed');
+      // The point of the option: nothing was written to a console that a
+      // packaged Windows application does not have.
+      expect(contents).toContain('"level":50');
+    } finally {
+      temp.cleanup();
+    }
+  });
+});

@@ -40,3 +40,7 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Desktop build output
+packages/desktop/app/
+packages/desktop/release/

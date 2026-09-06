@@ -8,6 +8,14 @@ export interface CreateLoggerOptions {
   /** Directory for the rolling log file. Omit to log only to stdout. */
   readonly logDirectory?: string;
   readonly level?: Level;
+  /**
+   * Whether to write to stdout as well.
+   *
+   * The desktop application sets this false: a packaged Windows program has no
+   * console attached, so writing to stdout reaches nobody and can fail on a
+   * handle that was never opened. The log file is the whole record there.
+   */
+  readonly console?: boolean;
 }
 
 /**
@@ -20,7 +28,11 @@ export interface CreateLoggerOptions {
 export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const level = options.level ?? (process.env.LOG_LEVEL as Level | undefined) ?? 'info';
 
-  const streams: StreamEntry[] = [{ level, stream: process.stdout }];
+  const streams: StreamEntry[] = [];
+
+  if (options.console !== false) {
+    streams.push({ level, stream: process.stdout });
+  }
 
   if (options.logDirectory !== undefined) {
     streams.push({

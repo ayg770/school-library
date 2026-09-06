@@ -1,0 +1,64 @@
+# Packaging for the library computer.
+#
+# The application directory this points at is built by `build.mjs` and is
+# already complete: bundled main process, built interface, one native module,
+# one manifest. electron-builder therefore does no dependency collection and no
+# native rebuild — see `npmRebuild` below.
+appId: org.schoollibrary.app
+productName: School Library
+copyright: School Library
+
+directories:
+  app: app
+  output: release
+  buildResources: resources
+
+# Left unpacked deliberately.
+#
+# An asar archive would save a little disk and cost two failure modes that are
+# hard to reproduce from a Linux machine: `@fastify/static` serving the
+# interface out of a virtual archive, and a native module that has to be
+# unpacked back out of it anyway. The application is a handful of files, so the
+# archive buys nothing worth that.
+asar: false
+
+# `build.mjs` already fetched the binary compiled for this Electron. Rebuilding
+# would look for a compiler that a build machine need not have.
+npmRebuild: false
+buildDependenciesFromSource: false
+
+files:
+  - '**/*'
+
+win:
+  target:
+    # The ordinary installer, and a single file that runs without installing —
+    # which is how the application gets tried before it is committed to.
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+  icon: resources/icon.ico
+  artifactName: SchoolLibrary-${version}-${os}-${arch}.${ext}
+
+nsis:
+  # A wizard rather than a silent one-click install: the librarian's computer is
+  # not necessarily theirs to install onto blindly, and someone may need to
+  # choose the directory.
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: ספריית בית הספר
+  installerLanguages: [en_US]
+  artifactName: SchoolLibrary-Setup-${version}.${ext}
+
+portable:
+  artifactName: SchoolLibrary-Portable-${version}.${ext}
+
+# Built on Linux for verification only — the librarian's machine is Windows.
+linux:
+  target: [dir]
+  category: Office
+  icon: resources/icon.png

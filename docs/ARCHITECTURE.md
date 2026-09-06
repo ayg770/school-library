@@ -10,7 +10,9 @@ Status legend: **Accepted** · **Superseded** · **Open**
 
 ## AD-1 — The application shell is deferred
 
-**Status:** Accepted · 2026-09-03
+**Status:** Resolved by AD-8 · 2026-09-06 — the question this deferred has been
+answered, and the shell is built. Kept because the reasoning still explains why
+`core`, `server` and `ui` are shaped the way they are.
 
 ### Context
 
@@ -73,6 +75,9 @@ chosen.
 The constraints of the library computer are known: whether software may be
 installed, and whether the network is reliable enough to make circulation
 depend on it.
+
+**Answered.** Software may be installed, and offline-first is required. See
+AD-8.
 
 ---
 
@@ -262,3 +267,90 @@ computer. Same file format, same integrity checks.
 
 The library needs more than one site writing at once, which SQLite on a single
 host cannot serve. Nothing in the current plan requires it.
+
+---
+
+## AD-8 — The desktop application is the system; the online copy is a backup
+
+**Status:** Accepted · 2026-09-06
+
+### Context
+
+AD-1 deferred the shell until it was known whether software could be installed
+on the library computer. It can. The library also stated the shape it wants:
+
+- The program on the library computer holds the data and works on its own.
+- An online copy exists for backup and for reading from elsewhere.
+- No new paid account. GitHub and an existing Supabase project, nothing more.
+
+That settles the question AD-1 left open, and settles it in favour of the rule
+`CLAUDE.md` puts first: **checkout and return work with the internet
+disconnected.**
+
+### Decision
+
+Ship a Windows application built with Electron. The database lives on the
+library computer and is the only copy anything writes to.
+
+The shell is deliberately thin. It does four things:
+
+1. Starts the existing service in its own process, on a port the operating
+   system assigns.
+2. Opens a window onto that service.
+3. Offers what an application must offer and a web page cannot — the data
+   folder, the backups folder, the log.
+4. Closes the database on the way out.
+
+Everything else is the packages that already existed. The shell adds no
+domain rule, no screen and no route.
+
+### Why the window is a browser rather than a native interface
+
+The renderer gets no Node, no `contextBridge` and no database handle. It
+reaches the service over HTTP, exactly as a browser on the local network does
+(AD-2). One consequence matters: a rule enforced in the service is enforced for
+every client, and there is no second path into the data to keep in step.
+
+This is also what makes the later phases cheap. A read-only website showing the
+same catalogue is the same interface against a different origin.
+
+### Why Electron, and what it costs
+
+Electron is a large runtime — roughly 100 MB unpacked — for an application
+whose own code is a few megabytes. That is a real cost and worth naming.
+
+What it buys is that the interface already exists and already works. The
+alternatives were to write a second interface in a native toolkit, or to give
+up offline-first. Both cost more than the disk does.
+
+### Packaging
+
+Two decisions that are unusual enough to state:
+
+- **The application directory is built, not collected.** `build.mjs` produces a
+  finished Electron application — one bundled main process, the built
+  interface, one native module, one manifest — and the packager is handed that
+  rather than the workspace. Packaging a monorepo otherwise means asking a tool
+  to work out which parts of a hoisted, symlinked `node_modules` belong to the
+  application, which is where these builds usually break.
+- **`better-sqlite3` is fetched already compiled for Electron**, not rebuilt.
+  Electron embeds its own V8, so the copy npm installs for Node will not load
+  inside it. The project publishes binaries for both, so a Windows installer
+  can be built without a compiler on the build machine.
+
+### Consequences
+
+- The library computer is where the data is. Anything else that displays it is
+  downstream of a copy.
+- Two instances would be two sets of migrations against one file, so the
+  application takes a single-instance lock and a second launch focuses the
+  first window.
+- The Windows installer can only be produced on Windows, which means CI. It
+  cannot be run or verified from a Linux development session — the Linux build
+  is verified instead, and it exercises the same code and the same packaging
+  path.
+
+### Revisit when
+
+The library needs more than one computer writing at once. That is a different
+system, not a bigger version of this one.

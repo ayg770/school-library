@@ -1,0 +1,68 @@
+name: Windows application
+
+# Builds the program the librarian installs.
+#
+# Run it by hand to get an installer to try, or push a `v*` tag to publish one
+# as a release. The release is what the application's own "update" button will
+# read in a later phase, so the artefact names are part of the contract and
+# should not be changed casually.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      # The same checks CI runs, on the platform the program will actually run
+      # on. A Windows path or a file-locking difference would show up here
+      # rather than on the library computer.
+      - run: npm run typecheck
+      - run: npm test
+
+      # Bundles the main process and the interface, and fetches the SQLite
+      # module compiled for Electron on Windows — no compiler needed.
+      - name: Build the application directory
+        run: node build.mjs --platform=win32 --arch=x64
+        working-directory: packages/desktop
+
+      - name: Package the installer
+        run: npx electron-builder --config electron-builder.yml --win --publish never
+        working-directory: packages/desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Kept for a fortnight so a build can be tried without cutting a release.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: school-library-windows
+          path: |
+            packages/desktop/release/*.exe
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes \
+            packages/desktop/release/*.exe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
