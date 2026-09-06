@@ -11,6 +11,16 @@ on:
   push:
     tags:
       - 'v*'
+  # Also on a pull request that touches packaging. An installer that stopped
+  # building is worth knowing about before the change is merged, not when a
+  # release is wanted — and the artefact can be downloaded from the run and
+  # tried. Nothing is published: only a tag does that.
+  pull_request:
+    paths:
+      - 'packages/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/desktop.yml'
 
 permissions:
   contents: write
