@@ -8,6 +8,22 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Fixed — Column mapping proposed a record number as the book title
+
+Schema version: **5** (unchanged)
+
+- A partial header match took the first column that contained the word rather
+  than the closest one. A real catalogue export names its columns `IN_TITLE_no`
+  (a record number) and `TI_TITLE` (the title), in that order — both contain
+  "title", so every book was proposed to be named after a number.
+- The librarian confirms the mapping before anything is imported (§13), so
+  nothing could have been silently lost. But a proposal has to be worth
+  confirming, and a catalogue imported with numbers for names is a catalogue
+  that has to be done again.
+- A partial match now takes the header the alias accounts for most of. An exact
+  match is still decided first, so it can never be overruled by closeness.
+- 3 further automated tests, built from the headers that found this.
+
 ### Added — Browsing the catalogue by subject and by shelf
 
 Schema version: **5** (unchanged)

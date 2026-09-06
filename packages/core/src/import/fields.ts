@@ -118,11 +118,31 @@ function normaliseHeader(text: string): string {
 }
 
 /**
+ * How well an alias matches a header, or null when it does not.
+ *
+ * The share of the header the alias accounts for. A real export names a column
+ * `TI_TITLE` beside a record number called `IN_TITLE_no`, and both contain
+ * "title" — but the first is almost entirely the word and the second is mostly
+ * something else, so the first is the better guess.
+ */
+function matchStrength(header: string, alias: string): number | null {
+  if (!header.includes(alias) || alias.length === 0) return null;
+  return alias.length / header.length;
+}
+
+/**
  * Proposes a column for each field by matching the file's own headers.
  *
  * Exact alias matches are taken first across all fields, so a file with both
  * "ברקוד כרטיס" and "ברקוד" cannot have the more specific header stolen by a
  * loose contains-match on the other.
+ *
+ * A partial match then takes the *closest* header rather than the first one in
+ * the file. Taking the first meant a column order the school did not choose
+ * decided which column became the book's title — and a catalogue imported with
+ * record numbers for titles is a catalogue that has to be thrown away and done
+ * again. The librarian confirms the proposal either way (§13); this is about
+ * proposing the right thing to confirm.
  */
 export function suggestMapping(
   headers: readonly string[],
@@ -133,22 +153,37 @@ export function suggestMapping(
   const mapping: Record<string, number> = {};
   const taken = new Set<number>();
 
-  for (const pass of ['exact', 'contains'] as const) {
-    for (const field of fields) {
-      if (mapping[field.key] !== undefined) continue;
+  for (const field of fields) {
+    const index = normalised.findIndex(
+      (header, position) =>
+        !taken.has(position) && field.aliases.some((alias) => header === normaliseHeader(alias)),
+    );
+    if (index !== -1) {
+      mapping[field.key] = index;
+      taken.add(index);
+    }
+  }
 
-      const index = normalised.findIndex((header, position) => {
-        if (taken.has(position)) return false;
-        return field.aliases.some((alias) => {
-          const target = normaliseHeader(alias);
-          return pass === 'exact' ? header === target : header.includes(target);
-        });
-      });
+  for (const field of fields) {
+    if (mapping[field.key] !== undefined) continue;
 
-      if (index !== -1) {
-        mapping[field.key] = index;
-        taken.add(index);
+    let best: { index: number; strength: number } | null = null;
+
+    normalised.forEach((header, position) => {
+      if (taken.has(position)) return;
+      for (const alias of field.aliases) {
+        const strength = matchStrength(header, normaliseHeader(alias));
+        if (strength === null) continue;
+        // Strictly greater, so an equally good match earlier in the file wins
+        // and the proposal stays stable for a given file.
+        if (best === null || strength > best.strength) best = { index: position, strength };
       }
+    });
+
+    if (best !== null) {
+      const chosen: { index: number; strength: number } = best;
+      mapping[field.key] = chosen.index;
+      taken.add(chosen.index);
     }
   }
 
