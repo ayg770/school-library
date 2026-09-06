@@ -8,6 +8,19 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Fixed — A list reported how many rows were on screen as the size of the library
+
+Schema version: **5** (unchanged)
+
+- Books, students and loans are fetched 200 at a time so a real catalogue does
+  not become two thousand table rows. All three then reported that 200 as the
+  count. A librarian who imports 2,039 titles and reads "200 ספרים" has every
+  reason to believe the import lost most of their books.
+- The total now leads, and the cap is stated when it applies: "2,039 ספרים ·
+  מוצגים 200 הראשונים". Narrowing by search or filter removes the note as soon
+  as everything fits.
+- Found by importing a real 2,264-row catalogue rather than a test fixture.
+
 ### Fixed — Column mapping proposed a record number as the book title
 
 Schema version: **5** (unchanged)

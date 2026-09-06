@@ -12,6 +12,7 @@ import {
   type ShelfLocation,
 } from '../api.js';
 import { Field } from '../components/Field.js';
+import { ResultCount } from '../components/ResultCount.js';
 import { Notice } from '../components/Notice.js';
 
 interface BookForm {
@@ -46,6 +47,7 @@ const EMPTY_COPY: CopyForm = { barcode: '', shelfPublicId: '', conditionNote: ''
 
 export function BooksScreen(): JSX.Element {
   const [books, setBooks] = useState<Book[]>([]);
+  const [bookTotal, setBookTotal] = useState(0);
   const [searchText, setSearchText] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [shelfFilter, setShelfFilter] = useState('');
@@ -67,15 +69,13 @@ export function BooksScreen(): JSX.Element {
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setBooks(
-        (
-          await api.listBooks({
-            query: searchText,
-            categoryPublicId: categoryFilter,
-            shelfPublicId: shelfFilter,
-          })
-        ).items,
-      );
+      const result = await api.listBooks({
+        query: searchText,
+        categoryPublicId: categoryFilter,
+        shelfPublicId: shelfFilter,
+      });
+      setBooks(result.items);
+      setBookTotal(result.total);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת הספרים נכשלה');
@@ -562,7 +562,7 @@ export function BooksScreen(): JSX.Element {
             ))}
           </select>
 
-          <span className="count">{plural(books.length, 'ספר', 'ספרים')}</span>
+          <ResultCount shown={books.length} total={bookTotal} singular="ספר" plural="ספרים" />
         </div>
 
         {(categoryFilter !== '' || shelfFilter !== '') && (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api, type SchoolClass, type Student } from '../api.js';
 import { Field } from '../components/Field.js';
 import { Notice } from '../components/Notice.js';
+import { ResultCount } from '../components/ResultCount.js';
 
 interface FormState {
   firstName: string;
@@ -34,6 +35,7 @@ function toForm(student: Student): FormState {
 
 export function StudentsScreen(): JSX.Element {
   const [students, setStudents] = useState<Student[]>([]);
+  const [studentTotal, setStudentTotal] = useState(0);
   const [classes, setClasses] = useState<SchoolClass[]>([]);
   const [searchText, setSearchText] = useState('');
   const [classFilter, setClassFilter] = useState('');
@@ -54,6 +56,7 @@ export function StudentsScreen(): JSX.Element {
         ...(showInactive ? {} : { active: true }),
       });
       setStudents(result.items);
+      setStudentTotal(result.total);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת התלמידים נכשלה');
@@ -249,7 +252,7 @@ export function StudentsScreen(): JSX.Element {
             />
             הצג גם לא פעילים
           </label>
-          <span className="count">{students.length} תלמידים</span>
+          <ResultCount shown={students.length} total={studentTotal} singular="תלמיד" plural="תלמידים" />
         </div>
 
         {students.length === 0 ? (

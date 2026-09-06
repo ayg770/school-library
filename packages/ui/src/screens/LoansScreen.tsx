@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError, api, formatDate, type Loan } from '../api.js';
 import { Notice } from '../components/Notice.js';
+import { ResultCount } from '../components/ResultCount.js';
 
 type StatusFilter = 'active' | 'overdue' | 'returned' | 'all';
 
@@ -15,12 +16,15 @@ const STATUS_LABELS: Record<StatusFilter, string> = {
 export function LoansScreen(): JSX.Element {
   const [status, setStatus] = useState<StatusFilter>('active');
   const [loans, setLoans] = useState<Loan[]>([]);
+  const [loanTotal, setLoanTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setLoans((await api.listLoans({ status })).items);
+      const result = await api.listLoans({ status });
+      setLoans(result.items);
+      setLoanTotal(result.total);
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת ההשאלות נכשלה');
@@ -61,7 +65,7 @@ export function LoansScreen(): JSX.Element {
       <section className="card">
         <div className="card-header">
           <h2>השאלות</h2>
-          <span className="count">{loans.length} רשומות</span>
+          <ResultCount shown={loans.length} total={loanTotal} singular="רשומה" plural="רשומות" />
         </div>
 
         <div className="toolbar">
