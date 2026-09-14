@@ -1,0 +1,72 @@
+name: Office site
+
+# Publishes the office side to GitHub Pages.
+#
+# The site is static: a page plus a key that is meant to be public. What
+# protects the library is row level security in Supabase, which was verified to
+# show an anonymous visitor nothing at all. Publishing it is therefore not the
+# same as exposing it.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/web/**'
+      - 'packages/ui/src/styles.css'
+      - '.github/workflows/pages.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a queued run replaces a waiting one rather than
+# racing it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+
+      - run: npm run typecheck
+
+      # Pages serves a project site from /<repo>/, so the built page has to
+      # look for its own assets there. Built at the domain root it would find
+      # nothing and show a blank screen.
+      - name: Build the site
+        run: npx vite build packages/web
+        env:
+          PAGES_BASE: /${{ github.event.repository.name }}/
+
+      # Any unknown path must return the application, which then reads the
+      # part after the "#". Without this, refreshing on a subpage is a 404.
+      - name: Serve unknown paths as the application
+        run: cp packages/web/dist/index.html packages/web/dist/404.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

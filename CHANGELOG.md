@@ -8,6 +8,34 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — The office site
+
+- **A site for managing the library from anywhere**, published to GitHub Pages
+  and talking straight to Supabase. Sign in, and edit the catalogue, the
+  categories and the shelf locations without going to the library.
+- The same stylesheet as the installed program, because the office and the
+  library are the same library and a person who learns one screen should
+  recognise the other.
+- **Signing up is not the same as being let in.** An administrator prepares an
+  account by email; the person claims it by signing in. Someone who signs up
+  without a prepared row is told so plainly instead of landing on an
+  application that shows nothing.
+- The home screen says when the library computer last synced, rather than
+  showing figures that look live.
+- **Fixed before release:** the first attempt linked accounts with a trigger on
+  Supabase's own `auth.users` table, and it broke signing in for everyone —
+  the auth service runs as its own role and could not reach the schema the
+  trigger lived in. Replaced with a function the application calls after
+  signing in, so nothing this project owns now runs inside Supabase's
+  authentication path.
+- **Fixed:** `currentStaff` asked for "a" staff row. Staff may read each other,
+  so it would cheerfully have signed you in as a colleague.
+- Verified against the live database, not a mock: signed out sees nothing,
+  claiming is refused when signed out, every screen's query returns what the
+  screen expects, an edit written from the office comes back changed and
+  stamped, and signing out makes it all invisible again. Sixteen checks, all
+  passing; every row they created was removed.
+
 ### Added — The online database
 
 - **Supabase now holds the library.** A dedicated project, free tier, Frankfurt.
