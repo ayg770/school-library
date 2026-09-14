@@ -12,6 +12,9 @@
     },
     {
       "path": "./packages/desktop"
+    },
+    {
+      "path": "./packages/web"
     }
   ]
 }
