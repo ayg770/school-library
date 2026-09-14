@@ -8,6 +8,31 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — The online database
+
+- **Supabase now holds the library.** A dedicated project, free tier, Frankfurt.
+  The office works against it from a browser; the library computer keeps its
+  own copy and syncs. See `ARCHITECTURE.md` AD-9, which supersedes AD-8.
+- **Each side owns what it writes.** Catalogue, categories, students and
+  accounts are the office's; loans are the library's. Two writers that never
+  touch the same row need no conflict resolution — only a union.
+- **A loan proposed online is a suggestion.** `origin` and `confirmed_at` carry
+  that, and the unique index enforcing one open loan per copy counts only
+  confirmed rows. A suggestion made in the office can never stop a librarian
+  lending the book in their hand.
+- **The public id is the primary key.** A row number is local to one machine,
+  and the same library now lives in two places.
+- **Nothing is readable without an account.** Row level security is forced on
+  every table, with one policy: the caller must map to an active staff row.
+  Verified that the anonymous key — the one a web page carries — reads nothing.
+- **The database stamps `updated_at` itself**, so a change made anywhere,
+  including by hand in Supabase's own table editor, still reaches the library.
+- The policy helper lives in a `private` schema, because Supabase publishes
+  every function in `public` as a REST endpoint.
+- Zero findings from Supabase's security advisor.
+- `supabase/migrations/` mirrors what was applied. A schema that exists only in
+  a running system is one nobody can review, and one that cannot be rebuilt.
+
 ### Fixed — A list reported how many rows were on screen as the size of the library
 
 Schema version: **5** (unchanged)
