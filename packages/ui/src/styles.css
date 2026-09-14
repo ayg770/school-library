@@ -410,10 +410,12 @@ h3 {
    Forms
    ========================================================================== */
 
-input[type='text'],
-input[type='search'],
-input[type='password'],
-input[type='file'],
+/* Every text-like field, named by what it is not.
+   Listing the types instead meant an input nobody had used yet — the office
+   site's e-mail field was the first — silently came out unstyled: narrower
+   than the box above it, with square corners, on the first screen anyone
+   sees. */
+input:not([type='checkbox']):not([type='radio']):not([type='button']):not([type='submit']):not([type='reset']),
 select,
 textarea {
   font: inherit;

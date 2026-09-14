@@ -35,6 +35,11 @@ is the highest applied migration, shown on the Settings and Support screen.
   screen expects, an edit written from the office comes back changed and
   stamped, and signing out makes it all invisible again. Sixteen checks, all
   passing; every row they created was removed.
+- **Fixed after publishing:** the e-mail field on the sign-in screen came out
+  unstyled — narrower than the password box beneath it, with square corners —
+  because the stylesheet listed the input types it covered and `email` had
+  never been used before. It now names the types it excludes instead, so the
+  next new kind of field is styled without anyone remembering to add it.
 
 ### Added — The online database
 
