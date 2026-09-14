@@ -272,7 +272,8 @@ host cannot serve. Nothing in the current plan requires it.
 
 ## AD-8 — The desktop application is the system; the online copy is a backup
 
-**Status:** Accepted · 2026-09-06
+**Status:** Superseded by AD-9 · 2026-09-14. The offline-first half stands; the
+claim that the online copy is only a backup does not.
 
 ### Context
 
@@ -354,3 +355,87 @@ Two decisions that are unusual enough to state:
 
 The library needs more than one computer writing at once. That is a different
 system, not a bigger version of this one.
+
+---
+
+## AD-9 — The catalogue lives online; the library owns circulation
+
+**Status:** Accepted · 2026-09-14
+
+### Context
+
+AD-8 put the library computer at the centre and made the online copy a backup.
+Use proved that wrong, and the library said so plainly:
+
+> Most of the corrections and upgrades I will want to make will not be from the
+> library computer. Adding textbooks, deciding on categories, changing a
+> student's name — all of that will be from my office.
+
+A backup cannot be edited. Under AD-8 every one of those tasks required being
+in the library, which is the one place the person doing them is not.
+
+They also saw the shape of the answer before I did: split the work not by
+*when* each side runs, but by **what each side writes**.
+
+### Decision
+
+**Supabase Postgres holds the library.** The office works against it directly
+from a browser. The library computer keeps a local SQLite copy and syncs.
+
+Each side owns what it writes, and the two sets do not overlap:
+
+| | Office, online | Library, offline |
+|---|---|---|
+| Catalogue, categories, shelves | writes | reads |
+| Students, classes, accounts | writes | reads |
+| **Loans** | proposes | **writes** |
+
+Two writers that never touch the same row do not need conflict resolution.
+There is no "who wins" to decide — only a union. That is what makes this
+tractable where general bidirectional sync was not, and it is why the earlier
+plan deferred the online half rather than solving it.
+
+### A loan from the office is a suggestion
+
+The office may record a checkout, but it is not a loan until the library
+computer confirms it. `loans.confirmed_at` carries that, and the unique index
+enforcing "one open loan per copy" counts only confirmed rows.
+
+The consequence is the point: a suggestion made in the office can never stop a
+librarian from lending the book that is physically in their hand. **The person
+holding the book wins.** The database says so, not a convention someone has to
+remember.
+
+### What does not change
+
+**Checkout and return work with the internet disconnected.** This is the first
+rule in `CLAUDE.md` and moving the catalogue online does not touch it. The
+library computer holds everything it needs to lend a book, and a sync that
+never happens delays a report — never a child borrowing a book.
+
+The domain, the schema's shape, the screens, the import, the backup and the
+roles all carry over. What is added is a second store and the sync between
+them.
+
+### Why not keep it all local and sync two desktop copies
+
+Considered and rejected. It would have cost nothing to host, but "where is my
+data?" would have had no good answer: two computers and an opaque backup file.
+The library has to understand where the work lives, and a system nobody
+understands is a system nobody trusts.
+
+### What this costs
+
+The rules that protect the data used to live in one place. Now the ones that
+guard the catalogue live in Postgres — constraints, a partial unique index, and
+row level security — while circulation's rules stay in the desktop application,
+where they must be, because that is where lending happens offline.
+
+Two enforcement points is a real cost. It is paid because the alternative was
+either a paid server or a system the library could not reason about.
+
+### Revisit when
+
+The office needs to lend or return books in earnest, rather than occasionally
+and by suggestion. That would make both sides real writers of circulation, and
+this design would owe an answer it currently does not.
