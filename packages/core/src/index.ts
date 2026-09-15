@@ -45,6 +45,7 @@ export {
 } from './updates.js';
 
 // --- Catalog (Phase 1) ---
+export { changeOwnPassword } from './domain/auth.js';
 export { DomainError, notFound, type DomainErrorCode } from './domain/errors.js';
 export {
   createClass,
@@ -211,12 +212,15 @@ export {
 } from './sync/service.js';
 export { confirmOfficeLoans, runSync } from './sync/run.js';
 export { applyTable } from './sync/pull.js';
-export { loansToPush, pushLoans } from './sync/push.js';
+export { markSynced, pushTable, rowsToPush } from './sync/push.js';
 export { readSyncState, writeSyncState, type SyncState } from './sync/state.js';
 export { SUPABASE_URL, SyncAuthError, SyncNetworkError } from './sync/supabase.js';
 export {
   PULL_TABLES,
+  PUSH_TABLES,
   type PullTable,
+  type PushResult,
+  type PushTable,
   type RemoteLibrary,
   type RemoteLoan,
   type RemoteRow,

@@ -200,6 +200,50 @@ export function updateStaffUser(db: Db, publicId: string, input: UpdateStaffUser
   return getStaffUser(db, publicId);
 }
 
+/**
+ * Changing your own password.
+ *
+ * Separate from `updateStaffUser`, which is an administrator acting on someone
+ * else: an administrator sets the first password so a new librarian can get in,
+ * and the librarian replaces it with one the administrator does not know. That
+ * is the whole point — a shared password that five people were told is not a
+ * record of who did what.
+ *
+ * The current password is required, so someone who walks up to an unattended
+ * screen cannot lock the librarian out of their own account.
+ */
+export function changeOwnPassword(
+  db: Db,
+  publicId: string,
+  currentPassword: unknown,
+  newPassword: unknown,
+): void {
+  const row = db.prepare('SELECT * FROM staff_users WHERE public_id = ?').get(publicId) as
+    | UserRow
+    | undefined;
+  if (row === undefined) throw notFound('המשתמש');
+
+  if (typeof currentPassword !== 'string' || !verifyPassword(currentPassword, row.password_hash)) {
+    throw new DomainError('VALIDATION', 'הסיסמה הנוכחית שגויה.', 'currentPassword');
+  }
+
+  const password = requirePassword(newPassword);
+  if (password === currentPassword) {
+    throw new DomainError('VALIDATION', 'הסיסמה החדשה זהה לנוכחית.', 'newPassword');
+  }
+
+  db.prepare('UPDATE staff_users SET password_hash = ?, updated_at = ? WHERE public_id = ?').run(
+    hashPassword(password),
+    nowIso(),
+    publicId,
+  );
+
+  // Every session opened with the old password ends, including this one. A
+  // password is changed because it may be known; leaving the old sessions
+  // running would make the change decorative.
+  revokeAllSessionsFor(db, publicId);
+}
+
 export interface Session {
   /** Sent to the client. Never stored — only its hash is. */
   readonly token: string;

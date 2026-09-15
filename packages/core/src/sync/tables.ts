@@ -61,7 +61,12 @@ const ref = (local: string, remote: string, refTable: PullTable): ColumnSpec => 
 export const TABLE_SPECS: Readonly<Record<PullTable, TableSpec>> = {
   categories: {
     table: 'categories',
-    columns: [text('name'), ref('parent_id', 'parent_id', 'categories'), bool('active')],
+    columns: [
+      text('name'),
+      ref('parent_id', 'parent_id', 'categories'),
+      num('loan_days'),
+      bool('active'),
+    ],
   },
   shelf_locations: {
     table: 'shelf_locations',

@@ -49,7 +49,18 @@ Then, in order:
    backup mechanism that has never been run is not a backup mechanism.
 2. **Import the catalogue** through the ייבוא מקובץ screen.
 3. **Add the remaining accounts** in the משתמשים screen — a librarian for daily
-   work, and `read_only` for a browsing terminal.
+   work, and `read_only` for a browsing terminal. Accounts here are a username
+   and a password; no e-mail address is involved. Each librarian then replaces
+   the password they were given from the הגדרות ותמיכה screen.
+4. **Connect to the online library**, from the סנכרון screen, if the school
+   uses one. An administrator does this once, with the e-mail address and
+   password of an account prepared in the office site. This is the only place
+   an e-mail address appears, and it belongs to the computer rather than to any
+   librarian.
+
+The office site is not part of this. It runs in a browser, is where the
+catalogue and the pupils are decided, and the library computer never needs to
+visit it — the two meet only through the סנכרון screen.
 
 ## Updating
 
@@ -110,14 +121,29 @@ its own. See `ARCHITECTURE.md` AD-8 for why.
 
 ## Releasing a version
 
+Either way round, the tag is what starts the **Windows application** workflow;
+it builds both files and attaches them to the release for that tag.
+
+**From a terminal:**
+
 ```
 npm version 0.2.0        # in the workspace root
 git push && git push --tags
 ```
 
-The tag starts the workflow, which builds both files and publishes a release.
+**From the website**, which needs no terminal: **Releases → Draft a new
+release → Choose a tag → type `v0.2.0` → Create new tag → Publish release.**
+The page will be empty for a few minutes while Windows builds; the two `.exe`
+files appear on it when it finishes.
+
+The workflow handles both orders. A tag pushed from a terminal has no release
+yet, so it creates one; a release drafted on the website already exists, so it
+uploads into it. Creating one that exists is an error, and the symptom would be
+a green build with the installer nowhere a librarian can reach it.
+
 The version shown on the הגדרות ותמיכה screen is the one in the root
-`package.json`, so those numbers agree by construction.
+`package.json`, so those numbers agree by construction — keep the tag and that
+version the same.
 
 ## When it will not start
 

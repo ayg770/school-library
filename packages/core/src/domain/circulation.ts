@@ -124,6 +124,25 @@ function map(row: LoanRow, now: number = Date.now()): Loan {
   };
 }
 
+/**
+ * How long this copy's category lends for, when it says.
+ *
+ * Null means the category has no opinion and the library-wide default stands.
+ */
+function categoryLoanDays(db: Db, copyId: number): number | null {
+  const row = db
+    .prepare(
+      `SELECT c.loan_days AS days
+         FROM book_copies bc
+         JOIN books b     ON b.id = bc.book_id
+         JOIN categories c ON c.id = b.category_id
+        WHERE bc.id = ?`,
+    )
+    .get(copyId) as { days: number | null } | undefined;
+
+  return row?.days ?? null;
+}
+
 export function addDays(isoDate: string, days: number): string {
   return new Date(Date.parse(isoDate) + days * MS_PER_DAY).toISOString();
 }
@@ -239,7 +258,10 @@ export function checkoutCopy(db: Db, input: CheckoutInput): Loan {
 
   const publicId = newPublicId();
   const checkoutAt = nowIso();
-  const loanDays = input.loanDays ?? settings.default_loan_days;
+  // A category may set its own period — textbooks go out for the school year,
+  // not a fortnight — and what the librarian typed beats both. Without this a
+  // child's textbook would turn red in the overdue report in October.
+  const loanDays = input.loanDays ?? categoryLoanDays(db, copy.id) ?? settings.default_loan_days;
   const dueAt = addDays(checkoutAt, loanDays);
   const notes = optionalText(input.notes, 'notes', 'הערות', 1000);
 

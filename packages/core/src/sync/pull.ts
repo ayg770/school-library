@@ -1,7 +1,10 @@
 import type { Db } from '../db/open.js';
 import { nowIso } from '../domain/common.js';
 import { NO_LOCAL_PASSWORD, TABLE_SPECS, type ColumnSpec } from './tables.js';
-import type { PullTable, RemoteRow, SyncProblem, TableResult } from './types.js';
+import { PUSH_TABLES, type PullTable, type RemoteRow, type SyncProblem, type TableResult } from './types.js';
+
+/** Tables this computer may also write, and so must mark as agreed on arrival. */
+const SENDS_UP = new Set<string>(PUSH_TABLES);
 
 /**
  * Applying what the office decided.
@@ -149,6 +152,13 @@ export function applyTable(db: Db, table: PullTable, rows: readonly RemoteRow[])
         updatedAt,
       ];
 
+      // A row that has just arrived agrees with the online library by
+      // definition, so it is not queued to be sent back.
+      if (SENDS_UP.has(table)) {
+        columns.push('synced_at');
+        params.push(updatedAt);
+      }
+
       // An account from the office arrives without a way to sign in. It is
       // listed, and an administrator here gives it a password.
       if (table === 'staff_users') {
@@ -177,6 +187,10 @@ export function applyTable(db: Db, table: PullTable, rows: readonly RemoteRow[])
 
     assignments.push('updated_at = ?');
     params.push(updatedAt);
+    if (SENDS_UP.has(table)) {
+      assignments.push('synced_at = ?');
+      params.push(updatedAt);
+    }
     params.push(existing.id);
 
     db.prepare(`UPDATE ${table} SET ${assignments.join(', ')} WHERE id = ?`).run(...params);

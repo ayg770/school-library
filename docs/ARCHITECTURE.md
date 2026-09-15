@@ -451,12 +451,32 @@ actually does, now that it exists.
 
 **Down:** categories, shelf locations, classes, accounts, books, pupils,
 copies, loans — in that order, so that a row's references have already arrived
-when it lands. **Up:** loans, and only loans.
+when it lands.
 
-There is no merge step, because there is nothing to merge. Two writers that
-never touch the same row need a union, not a resolution. The one place the two
-sides meet is a copy of a book, and the rule there is AD-9's: the person holding
-the book wins.
+**Up:** circulation, and the catalogue.
+
+Loans were the whole of it at first. The library asked for the rest almost
+immediately, and they were right: books arrive at the library, in a box, with
+the scanner on the desk. A rule that they must be catalogued from the office is
+a rule nobody would have kept, and the ones entered anyway would have been
+invisible online — including, awkwardly, to any loan that named them.
+
+What still never goes up: pupils, classes, accounts and settings. Those remain
+the office's, and a librarian's screen does not decide who the children are.
+
+### Two writers, and how a row knows which side wrote it
+
+There is still no merge step. Each row carries `synced_at` — the `updated_at` it
+had when it last agreed with the online library — and only rows that have moved
+since are offered up.
+
+This is not bookkeeping for its own sake. The online side stamps its own
+`updated_at` on every write, so without it a row that had just come down would
+be sent straight back, come down again with a newer stamp, and be sent back
+again: the entire catalogue, every exchange, for ever.
+
+The one place the two sides genuinely meet is a copy of a book, and the rule
+there is AD-9's: the person holding the book wins.
 
 ### Identity is `public_id`, and a barcode can claim one
 
@@ -492,11 +512,12 @@ The mark only advances past loans the online library actually accepted.
 ### Row level security enforces AD-9, not the screens
 
 The office site could hide its buttons from a librarian and the REST API would
-still be there. So the rule lives in Postgres: staff may read; **circulation may
-be written by a librarian; everything else belongs to an administrator.**
-Verified against the live database — a librarian account reads 2,039 books,
-changes none of them, cannot add a pupil, cannot promote itself, and reaches
-the loans table.
+still be there. So the rule lives in Postgres: staff may read; **circulation and
+the catalogue may be written by a librarian; the pupils, the classes, the
+accounts and the settings belong to an administrator.**
+
+Verified against the live database rather than assumed — a librarian account
+cannot add a pupil, cannot delete one, and cannot promote itself.
 
 ### What this costs
 

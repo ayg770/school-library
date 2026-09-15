@@ -1,4 +1,5 @@
 import {
+  changeOwnPassword,
   ROLES,
   createStaffUser,
   getStaffUser,
@@ -63,6 +64,27 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext): v
     request.log.info({ username: session.user.username }, 'Staff signed in');
 
     return reply.send({ user: session.user, expiresAt: session.expiresAt });
+  });
+
+  /**
+   * Changing your own password.
+   *
+   * Reachable by anyone signed in, which is the point: an administrator sets
+   * the first password so a new librarian can get in, and the librarian then
+   * replaces it with one nobody else knows. Every session ends with it,
+   * including this one, so the reply clears the cookie and the screen asks them
+   * to sign in again.
+   */
+  app.post('/api/v1/auth/password', async (request, reply) => {
+    const user = request.staffUser;
+    if (user === null) return reply.code(401).send(apiError('UNAUTHENTICATED', 'נדרשת התחברות.'));
+
+    const body = (request.body ?? {}) as { currentPassword?: unknown; newPassword?: unknown };
+    changeOwnPassword(context.db, user.publicId, body.currentPassword, body.newPassword);
+
+    clearSessionCookie(reply);
+    request.log.info({ username: user.username }, 'Staff changed their own password');
+    return reply.code(204).send();
   });
 
   app.post('/api/v1/auth/logout', async (request, reply) => {

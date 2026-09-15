@@ -303,4 +303,70 @@ describe('sign-in and access control', () => {
       expect(response.statusCode).toBe(401);
     });
   });
+
+  describe('changing your own password', () => {
+    it('lets a librarian replace the password an administrator gave them', async () => {
+      const harness = await createTestApp('librarian');
+      try {
+        const changed = await harness.post('/api/v1/auth/password', {
+          currentPassword: 'test-password',
+          newPassword: 'a-password-only-i-know',
+        });
+        expect(changed.statusCode).toBe(204);
+
+        // The old password is gone, the new one works, and the session that
+        // made the change ended with it.
+        await expect(harness.signInAs('librarian', 'test-password')).rejects.toThrow();
+        await expect(harness.signInAs('librarian', 'a-password-only-i-know')).resolves.toBeTruthy();
+
+        const stale = await harness.get('/api/v1/dashboard');
+        expect(stale.statusCode).toBe(401);
+      } finally {
+        await harness.close();
+      }
+    });
+
+    it('will not take the new password without the old one', async () => {
+      const harness = await createTestApp('librarian');
+      try {
+        const wrong = await harness.post('/api/v1/auth/password', {
+          currentPassword: 'not-the-password',
+          newPassword: 'something-new-entirely',
+        });
+        expect(wrong.statusCode).toBe(400);
+        expect(wrong.json()).toMatchObject({ error: { message: 'הסיסמה הנוכחית שגויה.' } });
+
+        // Still signed in, still the old password.
+        expect((await harness.get('/api/v1/dashboard')).statusCode).toBe(200);
+      } finally {
+        await harness.close();
+      }
+    });
+
+    it('is open to a read-only account too, because it is their password', async () => {
+      const harness = await createTestApp('read_only');
+      try {
+        const changed = await harness.post('/api/v1/auth/password', {
+          currentPassword: 'test-password',
+          newPassword: 'my-own-password',
+        });
+        expect(changed.statusCode).toBe(204);
+      } finally {
+        await harness.close();
+      }
+    });
+
+    it('refuses a password too short to be worth having', async () => {
+      const harness = await createTestApp('librarian');
+      try {
+        const short = await harness.post('/api/v1/auth/password', {
+          currentPassword: 'test-password',
+          newPassword: 'short',
+        });
+        expect(short.statusCode).toBe(400);
+      } finally {
+        await harness.close();
+      }
+    });
+  });
 });

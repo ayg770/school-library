@@ -6,6 +6,8 @@ interface Row {
   name: string;
   active: boolean;
   count: number;
+  /** Categories only: days this one lends for, or null for the library's own. */
+  loan_days: number | null;
 }
 
 type Kind = 'categories' | 'shelf_locations';
@@ -41,7 +43,7 @@ export function TaxonomyScreen({ kind }: { kind: Kind }): JSX.Element {
       // kinds ask different questions of different tables.
       const select =
         kind === 'categories'
-          ? 'public_id, name, active, books(count)'
+          ? 'public_id, name, active, loan_days, books(count)'
           : 'public_id, name, active, book_copies(count)';
 
       const { data, error } = await supabase.from(kind).select(select).order('name');
@@ -54,6 +56,8 @@ export function TaxonomyScreen({ kind }: { kind: Kind }): JSX.Element {
         return {
           public_id: String(record.public_id),
           name: String(record.name),
+          loan_days:
+            typeof record.loan_days === 'number' ? record.loan_days : null,
           active: Boolean(record.active),
           count: children[0]?.count ?? 0,
         };
@@ -114,6 +118,37 @@ export function TaxonomyScreen({ kind }: { kind: Kind }): JSX.Element {
    * orphan them. Marking it inactive takes it out of every list a librarian
    * picks from, and leaves the books that already carry it alone.
    */
+  /**
+   * How long this category lends for.
+   *
+   * Textbooks go out for the school year, story books for a fortnight. Setting
+   * it here rather than per loan means a librarian at the desk cannot forget,
+   * and a child's textbook does not turn red in the overdue report in October.
+   */
+  async function setLoanDays(row: Row, value: string): Promise<void> {
+    const days = value.trim() === '' ? null : Number(value);
+    if (days !== null && (!Number.isInteger(days) || days < 1 || days > 400)) return;
+
+    try {
+      const { error } = await supabase
+        .from(kind)
+        .update({ loan_days: days })
+        .eq('public_id', row.public_id);
+      if (error !== null) throw error;
+
+      setRows((current) =>
+        current.map((item) => (item.public_id === row.public_id ? { ...item, loan_days: days } : item)),
+      );
+      setNotice(
+        days === null
+          ? `${row.name} חוזרת לתקופת ההשאלה של הספרייה`
+          : `${row.name} מושאלת ל-${days} ימים`,
+      );
+    } catch (cause) {
+      setProblem(cause instanceof Error ? cause.message : 'העדכון נכשל');
+    }
+  }
+
   async function setActive(row: Row, active: boolean): Promise<void> {
     try {
       const { error } = await supabase.from(kind).update({ active }).eq('public_id', row.public_id);
@@ -187,6 +222,7 @@ export function TaxonomyScreen({ kind }: { kind: Kind }): JSX.Element {
                 <tr>
                   <th>שם</th>
                   <th>{labels.holds}</th>
+                  {kind === 'categories' && <th>ימי השאלה</th>}
                   <th>מצב</th>
                   <th className="row-actions" />
                 </tr>
@@ -211,6 +247,20 @@ export function TaxonomyScreen({ kind }: { kind: Kind }): JSX.Element {
                       )}
                     </td>
                     <td>{row.count}</td>
+                    {kind === 'categories' && (
+                      <td>
+                        <input
+                          type="number"
+                          min={1}
+                          max={400}
+                          value={row.loan_days ?? ''}
+                          placeholder="ברירת מחדל"
+                          aria-label={`ימי השאלה ל${row.name}`}
+                          onChange={(event) => void setLoanDays(row, event.target.value)}
+                          style={{ width: '7rem' }}
+                        />
+                      </td>
+                    )}
                     <td>
                       {row.active ? (
                         <span className="status status-ok">בשימוש</span>
