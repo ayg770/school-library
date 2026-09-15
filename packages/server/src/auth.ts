@@ -55,8 +55,18 @@ function isAdminOnly(method: string, path: string): boolean {
  * a librarian. `read_only` therefore covers a browsing terminal without
  * risking the catalogue (§20).
  */
+/**
+ * Things anyone signed in may do to their own account, whatever their role.
+ *
+ * Changing your own password has to be here: a `read_only` account is still a
+ * person with a password, and telling them to ask an administrator to change it
+ * for them defeats the purpose of having one.
+ */
+const OWN_ACCOUNT_ROUTES = new Set(['POST /api/v1/auth/password']);
+
 function requiredRole(method: string, path: string): Role {
   if (isAdminOnly(method, path)) return 'admin';
+  if (OWN_ACCOUNT_ROUTES.has(`${method} ${path}`)) return 'read_only';
   return method === 'GET' || method === 'HEAD' ? 'read_only' : 'librarian';
 }
 

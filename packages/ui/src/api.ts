@@ -33,6 +33,7 @@ export interface SyncStatus {
   lastAttemptAt: string | null;
   lastError: string | null;
   waitingToSend: number;
+  catalogueWaitingToSend: number;
   waitingSuggestions: number;
   accountsWithoutPassword: number;
 }
@@ -50,10 +51,16 @@ export interface SyncProblem {
   why: string;
 }
 
+export interface SyncSentResult {
+  table: string;
+  sent: number;
+}
+
 export interface SyncReport {
   startedAt: string;
   finishedAt: string;
   pulled: SyncTableResult[];
+  sent: SyncSentResult[];
   pushed: number;
   confirmed: number;
   stillPending: number;
@@ -123,6 +130,8 @@ export interface Category {
   publicId: string;
   name: string;
   parentPublicId: string | null;
+  /** Days this category lends for, or null for the library's own period. */
+  loanDays: number | null;
   active: boolean;
 }
 
@@ -495,6 +504,12 @@ export const api = {
     request<StudentLibrarySummary>(`/api/v1/students/${publicId}/library-summary`),
   updateCopy: (publicId: string, body: Record<string, unknown>) =>
     request<BookCopy>(`/api/v1/copies/${publicId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  changeOwnPassword: (currentPassword: string, newPassword: string) =>
+    request<void>('/api/v1/auth/password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 
   syncStatus: () => request<SyncStatus>('/api/v1/sync'),
   connectSync: (email: string, password: string) =>

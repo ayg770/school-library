@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { api, formatDate, type SystemInfo, type UpdateStatus } from '../api.js';
+import { ApiError, api, formatDate, type SystemInfo, type UpdateStatus } from '../api.js';
+import { Notice } from '../components/Notice.js';
 import { useServiceStatus } from '../useServiceStatus.js';
 
 /**
@@ -15,6 +16,34 @@ export function SupportScreen(): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [update, setUpdate] = useState<UpdateStatus | null>(null);
   const [checking, setChecking] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordProblem, setPasswordProblem] = useState<string | null>(null);
+  const [passwordDone, setPasswordDone] = useState(false);
+
+  /**
+   * An administrator gives a new librarian a first password; this is where the
+   * librarian replaces it with one nobody else knows. Every session ends with
+   * the change — including this one — so the screen says to sign in again
+   * rather than letting the next click fail with something cryptic.
+   */
+  async function submitPassword(event: React.FormEvent): Promise<void> {
+    event.preventDefault();
+    setPasswordBusy(true);
+    setPasswordProblem(null);
+    try {
+      await api.changeOwnPassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setPasswordDone(true);
+    } catch (cause) {
+      setPasswordProblem(cause instanceof ApiError ? cause.message : 'שינוי הסיסמה נכשל.');
+    } finally {
+      setPasswordBusy(false);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,6 +86,57 @@ export function SupportScreen(): JSX.Element {
 
   return (
     <>
+      <section className="card">
+        <h2>הסיסמה שלי</h2>
+        {passwordDone ? (
+          <>
+            <Notice kind="ok">הסיסמה הוחלפה. התחבר מחדש עם הסיסמה החדשה.</Notice>
+            <div className="form-actions">
+              <button type="button" className="btn btn-primary" onClick={() => window.location.reload()}>
+                התחבר מחדש
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="hint">
+              מנהל המערכת נותן סיסמה ראשונה. כאן אתה מחליף אותה בסיסמה שרק אתה יודע — לפחות 8 תווים.
+            </p>
+            {passwordProblem !== null && <Notice kind="error">{passwordProblem}</Notice>}
+            <form onSubmit={(event) => void submitPassword(event)}>
+              <div className="field">
+                <label htmlFor="current-password">הסיסמה הנוכחית</label>
+                <input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                  autoComplete="current-password"
+                  required
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="new-password">סיסמה חדשה</label>
+                <input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary" disabled={passwordBusy}>
+                  {passwordBusy ? 'מחליף…' : 'החלף סיסמה'}
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </section>
+
       <section className="card">
         <h2>מצב המערכת</h2>
         <dl className="info-grid">

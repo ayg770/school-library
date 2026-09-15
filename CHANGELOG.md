@@ -8,6 +8,24 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — What the library asked for after seeing the sync
+
+- **A librarian may catalogue a book.** Books arrive at the library, in a box,
+  with the scanner on the desk. What is entered here now goes up to the office
+  too — otherwise it would have been invisible online, including to any loan
+  that named it.
+- **A category may set its own loan period.** New category **ספרי לימוד**,
+  empty, lending for 300 days. A librarian at the desk cannot forget, and a
+  child's textbook does not turn red in the overdue report in October. What the
+  librarian types for one loan still beats it.
+- **Every librarian can change their own password.** An administrator gives a
+  first password so a new librarian can get in; the librarian replaces it with
+  one nobody else knows. Open to every role, because a `read_only` account is
+  still a person with a password. Every session ends with the change.
+- Accounts on the library computer need **no e-mail address** — they never did.
+  A username and a password are the whole of it. The only address anywhere is
+  the one the computer itself uses to reach the online library, once.
+
 ### Added — The sync between the library computer and the online library
 
 - **The catalogue, the pupils and the accounts come down; circulation goes up.**

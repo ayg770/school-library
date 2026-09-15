@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { PullTable, RemoteLibrary, RemoteLoan, RemoteRow } from './types.js';
+import type { PullTable, PushTable, RemoteLibrary, RemoteRow } from './types.js';
 
 /**
  * The online library, reached over the network.
@@ -83,9 +83,9 @@ class SupabaseLibrary implements RemoteLibrary {
     }
   }
 
-  async upsertLoans(loans: readonly RemoteLoan[]): Promise<void> {
-    if (loans.length === 0) return;
-    const { error } = await this.client.from('loans').upsert([...loans], { onConflict: 'public_id' });
+  async upsert(table: PushTable, rows: readonly RemoteRow[]): Promise<void> {
+    if (rows.length === 0) return;
+    const { error } = await this.client.from(table).upsert([...rows], { onConflict: 'public_id' });
     if (error !== null) throw translate(error);
   }
 

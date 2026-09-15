@@ -22,6 +22,24 @@ export const PULL_TABLES = [
 
 export type PullTable = (typeof PULL_TABLES)[number];
 
+/**
+ * What this computer sends up, in the order the online library can accept it.
+ *
+ * Circulation, because that is written here. And the catalogue, because a
+ * librarian may now add a book at the desk — the box of books arrives at the
+ * library, and so does the scanner. Pupils, classes and accounts are absent on
+ * purpose: those remain the office's (AD-9).
+ */
+export const PUSH_TABLES = [
+  'categories',
+  'shelf_locations',
+  'books',
+  'book_copies',
+  'loans',
+] as const;
+
+export type PushTable = (typeof PUSH_TABLES)[number];
+
 /** A row as the online library returns it: public ids, not row numbers. */
 export type RemoteRow = Record<string, unknown>;
 
@@ -52,10 +70,16 @@ export interface RemoteLoan {
 export interface RemoteLibrary {
   /** Rows changed at or after `since`; everything when `since` is null. */
   fetchSince(table: PullTable, since: string | null): Promise<RemoteRow[]>;
-  /** Writes loans, replacing any row with the same `public_id`. */
-  upsertLoans(loans: readonly RemoteLoan[]): Promise<void>;
+  /** Writes rows, replacing any with the same `public_id`. */
+  upsert(table: PushTable, rows: readonly RemoteRow[]): Promise<void>;
   /** The staff account this computer is signed in as. */
   describeAccount(): Promise<{ email: string; displayName: string; role: string }>;
+}
+
+/** What one table's upload did. */
+export interface PushResult {
+  readonly table: PushTable;
+  readonly sent: number;
 }
 
 /** What one table's download did. */
@@ -77,7 +101,9 @@ export interface SyncReport {
   readonly startedAt: string;
   readonly finishedAt: string;
   readonly pulled: readonly TableResult[];
-  /** Loans sent up. */
+  /** Rows sent up, per table. */
+  readonly sent: readonly PushResult[];
+  /** Loans among them — the figure the librarian actually recognises. */
   readonly pushed: number;
   /** Office suggestions this computer accepted, and now holds. */
   readonly confirmed: number;

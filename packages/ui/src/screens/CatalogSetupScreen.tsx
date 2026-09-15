@@ -15,6 +15,7 @@ export function CatalogSetupScreen(): JSX.Element {
   const [className, setClassName] = useState('');
   const [categoryName, setCategoryName] = useState('');
   const [categoryParent, setCategoryParent] = useState('');
+  const [categoryLoanDays, setCategoryLoanDays] = useState('');
   const [shelfName, setShelfName] = useState('');
   const [shelfRoom, setShelfRoom] = useState('');
 
@@ -97,11 +98,13 @@ export function CatalogSetupScreen(): JSX.Element {
                 api.createCategory({
                   name: categoryName,
                   parentPublicId: categoryParent === '' ? null : categoryParent,
+                  loanDays: categoryLoanDays === '' ? null : Number(categoryLoanDays),
                 }),
               'הקטגוריה נוספה.',
             ).then(() => {
               setCategoryName('');
               setCategoryParent('');
+              setCategoryLoanDays('');
             });
           }}
         >
@@ -127,16 +130,35 @@ export function CatalogSetupScreen(): JSX.Element {
               </option>
             ))}
           </select>
+          <input
+            type="number"
+            min={1}
+            max={400}
+            placeholder="ימי השאלה"
+            value={categoryLoanDays}
+            onChange={(event) => setCategoryLoanDays(event.target.value)}
+            aria-label="ימי השאלה לקטגוריה"
+            style={{ width: '9rem' }}
+          />
           <button type="submit" className="btn btn-primary" disabled={categoryName.trim() === ''}>
             הוסף
           </button>
         </form>
+        <p className="hint">
+          ימי השאלה — השאר ריק כדי להשתמש בברירת המחדל של הספרייה. ספרי לימוד, למשל, מושאלים לכל
+          השנה.
+        </p>
         {categories.length === 0 ? (
           <p className="empty">אין קטגוריות.</p>
         ) : (
           <ul className="menu-grid">
             {categories.map((category) => (
-              <li key={category.publicId}>{category.name}</li>
+              <li key={category.publicId}>
+                {category.name}
+                {category.loanDays !== null && (
+                  <span className="hint"> · {category.loanDays} ימים</span>
+                )}
+              </li>
             ))}
           </ul>
         )}

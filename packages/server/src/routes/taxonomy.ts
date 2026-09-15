@@ -19,6 +19,8 @@ import { optionalTextField, parseInput, queryFlag } from '../http.js';
 const categoryBody = z.object({
   name: z.string(),
   parentPublicId: optionalTextField,
+  // Null clears it, so a category can go back to the library's own period.
+  loanDays: z.number().int().nullable().optional(),
 });
 const categoryUpdate = categoryBody.partial().extend({ active: z.boolean().optional() });
 

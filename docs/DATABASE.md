@@ -249,9 +249,15 @@ password rather than an identity provider.
 
 | Role | May |
 |---|---|
-| `read_only` | Read anything |
-| `librarian` | Everything above, plus circulation, catalogue and import |
-| `admin` | Everything above, plus staff accounts, backup and restore |
+| `read_only` | Read anything, and change their own password |
+| `librarian` | Everything above, plus circulation, catalogue, import and sync |
+| `admin` | Everything above, plus staff accounts, backup, restore, and deciding which online library this computer belongs to |
+
+**Changing your own password is open to every role**, including `read_only`. An
+administrator sets the first one so a new librarian can get in; the librarian
+then replaces it with one the administrator does not know, which is the only
+thing that makes "who did this" mean anything. The current password is required,
+and every session ends with the change — including the one that made it.
 
 Enforced in one place, on every request, and closed by default: a route added
 later is protected unless it is explicitly listed as public.
@@ -297,6 +303,33 @@ office rather than from here.
 
 Nothing in this migration makes the network necessary. Every column is
 optional, and a library that never connects behaves exactly as it did before.
+
+## Migration 007 — a catalogue with two writers
+
+`shared-catalogue-and-category-loan-period`. See `docs/ARCHITECTURE.md` AD-10.
+
+### `synced_at`
+
+Added to `categories`, `shelf_locations`, `books`, `book_copies` and `loans`.
+
+It holds the `updated_at` the row had when it last agreed with the online
+library. **Equal** means untouched since; **null** means the row was born here;
+**anything else** means there is something to send.
+
+It exists because the catalogue now has two writers. Without it, a row that came
+*down* would be offered straight back *up* — and since the online side stamps
+its own `updated_at` on every write, the two sides would hand the same row back
+and forth for ever, re-downloading the whole catalogue on every exchange.
+
+### `categories.loan_days`
+
+Null uses the library-wide default. A number wins for every book in the
+category, and what the librarian types at the desk beats both.
+
+Textbooks are the reason: they are lent for the school year, not a fortnight,
+and without this a child's textbook would turn red in the overdue report in
+October. Capped at 400 days, because a typo of 3650 would put a book beyond
+every report for a decade and nobody would notice until the shelf was empty.
 
 ## Conventions for every future table
 

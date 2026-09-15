@@ -18,6 +18,8 @@ export interface SyncStatus extends SyncState {
   readonly connected: boolean;
   /** Loans this computer has not yet managed to send up. */
   readonly waitingToSend: number;
+  /** Books, copies, categories and shelves catalogued here and not yet sent. */
+  readonly catalogueWaitingToSend: number;
   /** Suggestions from the office still waiting for the book to come back. */
   readonly waitingSuggestions: number;
   /** Accounts that arrived from the office and cannot sign in here yet. */
@@ -35,10 +37,15 @@ export function syncStatus(db: Db): SyncStatus {
     connected: state.refreshToken !== null,
     waitingToSend: count(
       `SELECT COUNT(*) AS n FROM loans
-        WHERE (? IS NULL OR updated_at > ?)
+        WHERE (synced_at IS NULL OR updated_at > synced_at)
           AND NOT (origin = 'office' AND confirmed_at IS NULL)`,
-      state.lastPushedAt,
-      state.lastPushedAt,
+    ),
+    catalogueWaitingToSend: count(
+      `SELECT (SELECT COUNT(*) FROM books       WHERE synced_at IS NULL OR updated_at > synced_at)
+            + (SELECT COUNT(*) FROM book_copies WHERE synced_at IS NULL OR updated_at > synced_at)
+            + (SELECT COUNT(*) FROM categories  WHERE synced_at IS NULL OR updated_at > synced_at)
+            + (SELECT COUNT(*) FROM shelf_locations WHERE synced_at IS NULL OR updated_at > synced_at)
+         AS n`,
     ),
     waitingSuggestions: count(
       `SELECT COUNT(*) AS n FROM loans

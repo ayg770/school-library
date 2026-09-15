@@ -1,9 +1,17 @@
 import type { Db } from '../db/open.js';
 import { nowIso } from '../domain/common.js';
 import { applyTable } from './pull.js';
-import { loansToPush, pushLoans } from './push.js';
+import { markSynced, pushTable, rowsToPush } from './push.js';
 import { readSyncState, writeSyncState } from './state.js';
-import { PULL_TABLES, type RemoteLibrary, type SyncProblem, type SyncReport, type TableResult } from './types.js';
+import {
+  PULL_TABLES,
+  PUSH_TABLES,
+  type PushResult,
+  type RemoteLibrary,
+  type SyncProblem,
+  type SyncReport,
+  type TableResult,
+} from './types.js';
 
 /**
  * One exchange with the online library.
@@ -106,18 +114,32 @@ export async function runSync(db: Db, remote: RemoteLibrary): Promise<SyncReport
   const decided = db.transaction(() => confirmOfficeLoans(db))();
   problems.push(...decided.problems);
 
-  const outgoing = loansToPush(db, state.lastPushedAt);
-  const push = await pushLoans(remote, outgoing);
-  problems.push(...push.problems);
-  if (push.highWater !== null) writeSyncState(db, { lastPushedAt: push.highWater });
+  // Up in dependency order, so a copy never arrives before its book. Each
+  // table is marked as agreed the moment it is accepted, rather than at the
+  // end: a failure in a later table must not make this computer offer the
+  // earlier ones again.
+  const sent: PushResult[] = [];
+  let loansSent = 0;
 
-  writeSyncState(db, { lastError: null });
+  for (const table of PUSH_TABLES) {
+    const outgoing = rowsToPush(db, table);
+    const push = await pushTable(remote, table, outgoing);
+
+    db.transaction(() => markSynced(db, table, push.accepted))();
+
+    sent.push({ table, sent: push.sent });
+    problems.push(...push.problems);
+    if (table === 'loans') loansSent = push.sent;
+  }
+
+  writeSyncState(db, { lastPushedAt: nowIso(), lastError: null });
 
   return {
     startedAt,
     finishedAt: nowIso(),
     pulled,
-    pushed: push.sent,
+    sent,
+    pushed: loansSent,
     confirmed: decided.confirmed,
     stillPending: decided.stillPending,
     problems,

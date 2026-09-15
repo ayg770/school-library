@@ -4,23 +4,25 @@ import {
   checkoutCopy,
   confirmOfficeLoans,
   createBook,
+  createCategory,
   createCopy,
   createStudent,
   listBooks,
-  loansToPush,
   migrations,
   openDatabase,
-  pushLoans,
-  readSyncState,
+  pushTable,
+  rowsToPush,
   runMigrations,
   runSync,
   signIn,
   syncStatus,
+  updateBook,
+  writeSetting,
   writeSyncState,
   type Db,
   type PullTable,
+  type PushTable,
   type RemoteLibrary,
-  type RemoteLoan,
   type RemoteRow,
 } from '../src/index.js';
 
@@ -33,13 +35,18 @@ import {
  */
 class FakeRemote implements RemoteLibrary {
   readonly tables = new Map<PullTable, RemoteRow[]>();
-  readonly received: RemoteLoan[] = [];
-  /** Loans the stand-in refuses, by public id, to stand for a database saying no. */
+  /** Everything this stand-in was asked to store, in the order it arrived. */
+  readonly written = new Map<PushTable, RemoteRow[]>();
+  /** Rows the stand-in refuses, by public id, to stand for a database saying no. */
   reject = new Set<string>();
   failWholeBatch = false;
 
   put(table: PullTable, ...rows: RemoteRow[]): void {
     this.tables.set(table, [...(this.tables.get(table) ?? []), ...rows]);
+  }
+
+  received(table: PushTable = 'loans'): RemoteRow[] {
+    return this.written.get(table) ?? [];
   }
 
   async fetchSince(table: PullTable, since: string | null): Promise<RemoteRow[]> {
@@ -48,14 +55,14 @@ class FakeRemote implements RemoteLibrary {
     return rows.filter((row) => String(row.updated_at) >= since);
   }
 
-  async upsertLoans(loans: readonly RemoteLoan[]): Promise<void> {
-    if (this.failWholeBatch && loans.length > 1) throw new Error('batch rejected');
-    for (const loan of loans) {
-      if (this.reject.has(loan.public_id)) {
+  async upsert(table: PushTable, rows: readonly RemoteRow[]): Promise<void> {
+    if (this.failWholeBatch && rows.length > 1) throw new Error('batch rejected');
+    for (const row of rows) {
+      if (this.reject.has(String(row.public_id))) {
         throw new Error('insert or update violates foreign key constraint "loans_student_id_fkey"');
       }
     }
-    this.received.push(...loans);
+    this.written.set(table, [...this.received(table), ...rows]);
   }
 
   async describeAccount(): Promise<{ email: string; displayName: string; role: string }> {
@@ -313,7 +320,7 @@ describe('sync', () => {
       proposeLoan();
       await runSync(db, remote);
 
-      expect(remote.received.some((loan) => loan.public_id === 'loan-office')).toBe(false);
+      expect(remote.received().some((loan) => loan.public_id === 'loan-office')).toBe(false);
     });
   });
 
@@ -328,14 +335,14 @@ describe('sync', () => {
 
       const first = await runSync(db, remote);
       expect(first.pushed).toBe(1);
-      expect(remote.received[0]!.copy_id).toBe('copy-1');
-      expect(remote.received[0]!.student_id).toBe('student-1');
-      expect(remote.received[0]!.origin).toBe('library');
-      expect(remote.received[0]!.confirmed_at).not.toBeNull();
+      expect(remote.received()[0]!.copy_id).toBe('copy-1');
+      expect(remote.received()[0]!.student_id).toBe('student-1');
+      expect(remote.received()[0]!.origin).toBe('library');
+      expect(remote.received()[0]!.confirmed_at).not.toBeNull();
 
       const second = await runSync(db, remote);
       expect(second.pushed).toBe(0);
-      expect(remote.received).toHaveLength(1);
+      expect(remote.received()).toHaveLength(1);
     });
 
     it('isolates the one loan the online library refuses, and sends the rest', async () => {
@@ -353,12 +360,14 @@ describe('sync', () => {
 
       expect(report.pushed).toBe(1);
       expect(report.problems).toHaveLength(1);
-      expect(report.problems[0]!.what).toContain('ספר שני');
-      expect(report.problems[0]!.why).toContain('עדיין לא קיימים באונליין');
-      expect(remote.received.map((l) => l.copy_id)).toEqual(['copy-1']);
+      // Named by the book and the child, because "a row was refused" is not
+      // something anybody can act on.
+      expect(report.problems[0]!.what).toBe('ספר שני — דוד לוי');
+      expect(report.problems[0]!.why).toContain('עדיין לא קיים באונליין');
+      expect(remote.received().map((l) => l.copy_id)).toEqual(['copy-1']);
     });
 
-    it('does not move the mark past a loan that was refused', async () => {
+    it('does not mark a refused loan as sent, so the next exchange tries again', async () => {
       const otherBook = createBook(db, { title: 'ספר שני' });
       createCopy(db, { bookPublicId: otherBook.publicId, barcode: '002' });
       const localStudent = createStudent(db, { firstName: 'דוד', lastName: 'לוי' });
@@ -368,16 +377,19 @@ describe('sync', () => {
       remote.reject.add(rejected.publicId);
       await runSync(db, remote);
 
-      // Nothing was accepted, so nothing is marked as sent: the next exchange
-      // tries the same loan again rather than forgetting it.
-      expect(readSyncState(db).lastPushedAt).toBeNull();
-      expect(loansToPush(db, readSyncState(db).lastPushedAt)).toHaveLength(1);
+      const still = rowsToPush(db, 'loans');
+      expect(still.map((row) => row.publicId)).toEqual([rejected.publicId]);
+
+      const row = db
+        .prepare('SELECT synced_at FROM loans WHERE public_id = ?')
+        .get(rejected.publicId) as { synced_at: string | null };
+      expect(row.synced_at).toBeNull();
     });
 
     it('sends a return, because the return changed the loan', async () => {
       checkoutCopy(db, { barcode: '001796', studentPublicId: 'student-1' });
       await runSync(db, remote);
-      remote.received.length = 0;
+      remote.written.clear();
 
       db.prepare(
         "UPDATE loans SET returned_at = '2026-09-16T00:00:00.000Z', updated_at = '2026-09-16T00:00:00.000Z'",
@@ -385,7 +397,7 @@ describe('sync', () => {
 
       const report = await runSync(db, remote);
       expect(report.pushed).toBe(1);
-      expect(remote.received[0]!.returned_at).toBe('2026-09-16T00:00:00.000Z');
+      expect(remote.received()[0]!.returned_at).toBe('2026-09-16T00:00:00.000Z');
     });
   });
 
@@ -479,31 +491,114 @@ describe('sync', () => {
       expect(row.created_at).toBe('2026-09-14T21:02:33.123Z');
     });
 
-    it('keeps "changed since" meaningful across both spellings', async () => {
-      remoteCatalogue(remote);
-      await runSync(db, remote);
-
-      // The same instant, written the way Postgres writes it. Compared as text
-      // against this side's spelling it sorts *before* it, which is what would
-      // make a loan look older than it is and be sent up for ever.
+    it('does not offer a Postgres-stamped row back up for ever', () => {
+      // The same instant in the two spellings. As text they do not compare the
+      // way the clock does — which is exactly how a row that had just arrived
+      // could look newer than its own mark and be sent straight back, over and
+      // over, every time the two sides spoke.
       const postgres = '2026-09-15T08:00:00.000000+00:00';
       const ours = '2026-09-15T08:00:00.000Z';
       expect(postgres > ours).toBe(false);
+      expect(ours > postgres).toBe(true);
 
-      checkoutCopy(db, { barcode: '001796', studentPublicId: 'student-1' });
-      db.prepare("UPDATE loans SET updated_at = ?, checkout_at = ?").run(ours, ours);
+      applyTable(db, 'books', [
+        { public_id: 'book-7', title: 'ספר מהמשרד', active: true, created_at: postgres, updated_at: postgres },
+      ]);
 
-      // Nothing newer than that moment, whichever side wrote the mark down.
-      expect(loansToPush(db, ours)).toHaveLength(0);
-      expect(loansToPush(db, '2026-09-15T07:59:59.999Z')).toHaveLength(1);
+      const row = db.prepare('SELECT updated_at, synced_at FROM books').get() as {
+        updated_at: string;
+        synced_at: string;
+      };
+      expect(row.updated_at).toBe(ours);
+      expect(row.synced_at).toBe(ours);
+      expect(rowsToPush(db, 'books')).toHaveLength(0);
     });
   });
 
-  describe('pushLoans', () => {
+  describe('pushTable', () => {
     it('sends nothing, and asks for nothing, when there is nothing to send', async () => {
-      const outcome = await pushLoans(remote, []);
-      expect(outcome).toEqual({ sent: 0, problems: [], highWater: null });
-      expect(remote.received).toHaveLength(0);
+      const outcome = await pushTable(remote, 'loans', []);
+      expect(outcome).toEqual({ sent: 0, problems: [], accepted: [] });
+      expect(remote.received()).toHaveLength(0);
+    });
+  });
+
+  describe('a book catalogued at the desk', () => {
+    beforeEach(async () => {
+      remoteCatalogue(remote);
+      await runSync(db, remote);
+      remote.written.clear();
+    });
+
+    it('goes up, with its copy, and stops going up after that', async () => {
+      const book = createBook(db, { title: 'ספר חדש מהקופסה', authorText: 'מישהו' });
+      createCopy(db, { bookPublicId: book.publicId, barcode: '9001' });
+
+      const first = await runSync(db, remote);
+      expect(first.sent.find((t) => t.table === 'books')?.sent).toBe(1);
+      expect(first.sent.find((t) => t.table === 'book_copies')?.sent).toBe(1);
+      expect(remote.received('books')[0]!.title).toBe('ספר חדש מהקופסה');
+      expect(remote.received('book_copies')[0]!.barcode).toBe('9001');
+      // The copy points at the book by the id both sides share.
+      expect(remote.received('book_copies')[0]!.book_id).toBe(book.publicId);
+
+      remote.written.clear();
+      const second = await runSync(db, remote);
+      expect(second.sent.find((t) => t.table === 'books')?.sent).toBe(0);
+      expect(remote.received('books')).toHaveLength(0);
+    });
+
+    it('never sends back a book that came down from the office', async () => {
+      await runSync(db, remote);
+      expect(remote.received('books')).toHaveLength(0);
+      expect(remote.received('book_copies')).toHaveLength(0);
+    });
+
+    it('goes up again after a librarian corrects its title', async () => {
+      const book = createBook(db, { title: 'שם עם טעות' });
+      await runSync(db, remote);
+      remote.written.clear();
+
+      updateBook(db, book.publicId, { title: 'השם הנכון' });
+      await runSync(db, remote);
+
+      expect(remote.received('books').map((row) => row.title)).toEqual(['השם הנכון']);
+    });
+  });
+
+  describe('a category that sets its own loan period', () => {
+    it('lends its books for that long instead of the library default', async () => {
+      writeSetting(db, 'default_loan_days', 14);
+      const textbooks = createCategory(db, { name: 'ספרי לימוד', loanDays: 300 });
+      expect(textbooks.loanDays).toBe(300);
+
+      const book = createBook(db, { title: 'חומש בראשית', categoryPublicId: textbooks.publicId });
+      createCopy(db, { bookPublicId: book.publicId, barcode: 'T-1' });
+      const student = createStudent(db, { firstName: 'שרה', lastName: 'כהן' });
+
+      const loan = checkoutCopy(db, { barcode: 'T-1', studentPublicId: student.publicId });
+      const days = Math.round(
+        (Date.parse(loan.dueAt!) - Date.parse(loan.checkoutAt)) / (24 * 60 * 60 * 1000),
+      );
+      expect(days).toBe(300);
+    });
+
+    it('still lets the librarian override it for one loan', () => {
+      const textbooks = createCategory(db, { name: 'ספרי לימוד', loanDays: 300 });
+      const book = createBook(db, { title: 'חומש שמות', categoryPublicId: textbooks.publicId });
+      createCopy(db, { bookPublicId: book.publicId, barcode: 'T-2' });
+      const student = createStudent(db, { firstName: 'יוסי', lastName: 'לוי' });
+
+      const loan = checkoutCopy(db, { barcode: 'T-2', studentPublicId: student.publicId, loanDays: 7 });
+      const days = Math.round(
+        (Date.parse(loan.dueAt!) - Date.parse(loan.checkoutAt)) / (24 * 60 * 60 * 1000),
+      );
+      expect(days).toBe(7);
+    });
+
+    it('refuses a period nobody could have meant', () => {
+      expect(() => createCategory(db, { name: 'שגיאה', loanDays: 3650 })).toThrow();
+      expect(() => createCategory(db, { name: 'שגיאה', loanDays: 0 })).toThrow();
     });
   });
 });

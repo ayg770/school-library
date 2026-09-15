@@ -104,6 +104,8 @@ export function SyncScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.Elem
   }
 
   const received = report?.pulled.filter((table) => table.added + table.updated > 0) ?? [];
+  const catalogueSent =
+    report?.sent.filter((table) => table.table !== 'loans').reduce((sum, t) => sum + t.sent, 0) ?? 0;
 
   return (
     <>
@@ -180,9 +182,15 @@ export function SyncScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.Elem
             </div>
 
             <div className={`tile ${status.waitingToSend > 0 ? 'tile-warn' : ''}`}>
-              <div className="label">ממתין לעלות</div>
+              <div className="label">השאלות ממתינות לעלות</div>
               <div className="value">{status.waitingToSend}</div>
-              <div className="note">השאלות והחזרות שנרשמו כאן</div>
+              <div className="note">נרשמו כאן</div>
+            </div>
+
+            <div className={`tile ${status.catalogueWaitingToSend > 0 ? 'tile-warn' : ''}`}>
+              <div className="label">קטלוג ממתין לעלות</div>
+              <div className="value">{status.catalogueWaitingToSend}</div>
+              <div className="note">ספרים ועותקים שנקלטו כאן</div>
             </div>
 
             <div className={`tile ${status.waitingSuggestions > 0 ? 'tile-warn' : ''}`}>
@@ -232,7 +240,14 @@ export function SyncScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.Elem
           </div>
 
           <p style={{ marginTop: 0 }}>
-            עלו <strong>{report.pushed}</strong> השאלות והחזרות.
+            עלו <strong>{report.pushed}</strong> השאלות והחזרות
+            {catalogueSent > 0 && (
+              <>
+                {' '}
+                ו-<strong>{catalogueSent}</strong> רשומות קטלוג
+              </>
+            )}
+            .
             {report.confirmed > 0 && <> אושרו <strong>{report.confirmed}</strong> המלצות מהמשרד.</>}
             {report.stillPending > 0 && (
               <> <strong>{report.stillPending}</strong> המלצות עדיין ממתינות.</>
