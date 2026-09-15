@@ -25,6 +25,41 @@ export interface SystemInfo {
   };
 }
 
+export interface SyncStatus {
+  connected: boolean;
+  connectedEmail: string | null;
+  lastPulledAt: string | null;
+  lastPushedAt: string | null;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+  waitingToSend: number;
+  waitingSuggestions: number;
+  accountsWithoutPassword: number;
+}
+
+export interface SyncTableResult {
+  table: string;
+  received: number;
+  added: number;
+  updated: number;
+  skipped: number;
+}
+
+export interface SyncProblem {
+  what: string;
+  why: string;
+}
+
+export interface SyncReport {
+  startedAt: string;
+  finishedAt: string;
+  pulled: SyncTableResult[];
+  pushed: number;
+  confirmed: number;
+  stillPending: number;
+  problems: SyncProblem[];
+}
+
 export interface UpdateStatus {
   currentVersion: string;
   latestVersion: string | null;
@@ -460,6 +495,16 @@ export const api = {
     request<StudentLibrarySummary>(`/api/v1/students/${publicId}/library-summary`),
   updateCopy: (publicId: string, body: Record<string, unknown>) =>
     request<BookCopy>(`/api/v1/copies/${publicId}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  syncStatus: () => request<SyncStatus>('/api/v1/sync'),
+  connectSync: (email: string, password: string) =>
+    request<SyncStatus>('/api/v1/sync/connection', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }),
+  disconnectSync: () => request<SyncStatus>('/api/v1/sync/connection', { method: 'DELETE' }),
+  runSync: () =>
+    request<{ report: SyncReport; status: SyncStatus }>('/api/v1/sync/run', { method: 'POST' }),
 };
 
 /** Dates are shown in the browser's locale, which on the library PC is Hebrew. */

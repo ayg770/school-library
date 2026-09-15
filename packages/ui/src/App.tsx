@@ -13,6 +13,7 @@ import { ReturnScreen } from './screens/ReturnScreen.js';
 import { StaffScreen } from './screens/StaffScreen.js';
 import { StudentsScreen } from './screens/StudentsScreen.js';
 import { SupportScreen } from './screens/SupportScreen.js';
+import { SyncScreen } from './screens/SyncScreen.js';
 import { useSession } from './useSession.js';
 
 type ScreenId =
@@ -27,7 +28,8 @@ type ScreenId =
   | 'import'
   | 'backup'
   | 'staff'
-  | 'support';
+  | 'support'
+  | 'sync';
 
 interface ScreenDefinition {
   readonly id: ScreenId;
@@ -69,6 +71,7 @@ const NAV: readonly NavGroup[] = [
     title: 'ניהול',
     screens: [
       { id: 'import', label: 'ייבוא מקובץ', role: 'librarian' },
+      { id: 'sync', label: 'סנכרון', role: 'librarian' },
       { id: 'backup', label: 'גיבוי', role: 'admin' },
       { id: 'staff', label: 'משתמשים', role: 'admin' },
       { id: 'support', label: 'הגדרות ותמיכה', role: 'read_only' },
@@ -183,6 +186,7 @@ export function App(): JSX.Element {
         {current === 'import' && <ImportScreen />}
         {current === 'backup' && <BackupScreen />}
         {current === 'staff' && <StaffScreen currentUser={user} />}
+        {current === 'sync' && <SyncScreen isAdmin={user.role === 'admin'} />}
         {current === 'support' && <SupportScreen />}
       </main>
     </div>

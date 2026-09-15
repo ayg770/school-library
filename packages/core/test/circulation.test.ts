@@ -117,14 +117,20 @@ describe('circulation', () => {
       ).id;
 
       // Bypassing the domain entirely: the partial unique index must still refuse.
-      expect(() =>
-        db
-          .prepare(
-            `INSERT INTO loans (public_id, copy_id, student_id, checkout_at, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-          )
-          .run('forced', copyId, otherId, 'now', 'now', 'now'),
-      ).toThrowError(/UNIQUE|constraint/i);
+      const force = (publicId: string, confirmedAt: string | null): void => {
+        db.prepare(
+          `INSERT INTO loans (public_id, copy_id, student_id, checkout_at, confirmed_at,
+                              created_at, updated_at)
+           VALUES (?, ?, ?, 'now', ?, 'now', 'now')`,
+        ).run(publicId, copyId, otherId, confirmedAt);
+      };
+
+      expect(() => force('forced', 'now')).toThrowError(/UNIQUE|constraint/i);
+
+      // A suggestion from the office is not a loan and does not hold the copy,
+      // so it may sit alongside this one — but only one of them may.
+      force('suggested', null);
+      expect(() => force('suggested-again', null)).toThrowError(/UNIQUE|constraint/i);
     });
 
     it('allows the same copy to go out again after it comes back', () => {

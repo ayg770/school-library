@@ -245,9 +245,13 @@ export function checkoutCopy(db: Db, input: CheckoutInput): Loan {
 
   const commit = db.transaction(() => {
     db.prepare(
+      // A loan made here is confirmed by the act of making it: a librarian had
+      // the book in their hand. Only a suggestion arriving from the office
+      // (AD-9) is left unconfirmed, and only until this computer has seen it.
       `INSERT INTO loans (public_id, copy_id, student_id, checkout_at, due_at,
-                          checkout_by_user_id, notes, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                          checkout_by_user_id, notes, origin, confirmed_at,
+                          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'library', ?, ?, ?)`,
     ).run(
       publicId,
       copy.id,
@@ -256,6 +260,7 @@ export function checkoutCopy(db: Db, input: CheckoutInput): Loan {
       dueAt,
       input.staffUserId ?? null,
       notes,
+      checkoutAt,
       checkoutAt,
       checkoutAt,
     );
