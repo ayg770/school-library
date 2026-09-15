@@ -12,6 +12,7 @@ import { registerClassRoutes } from './routes/classes.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerImportRoutes } from './routes/imports.js';
 import { registerStudentRoutes } from './routes/students.js';
+import { registerSyncRoutes } from './routes/sync.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerTaxonomyRoutes } from './routes/taxonomy.js';
 
@@ -77,6 +78,7 @@ export function buildApp(context: AppContext, options: BuildAppOptions = {}): Fa
   registerCirculationRoutes(app, context);
   registerBackupRoutes(app, context);
   registerImportRoutes(app, context);
+  registerSyncRoutes(app, context);
 
   if (options.uiDir !== undefined) {
     void app.register(fastifyStatic, { root: options.uiDir, wildcard: false });

@@ -256,6 +256,48 @@ password rather than an identity provider.
 Enforced in one place, on every request, and closed by default: a route added
 later is protected unless it is explicitly listed as public.
 
+## Migration 006 — the link to the online library
+
+`sync-with-the-online-library`. See `docs/ARCHITECTURE.md` AD-9 and AD-10.
+
+`loans` gains two columns:
+
+- **`origin`** — `library` or `office`. Where the checkout was recorded.
+- **`confirmed_at`** — null while a checkout is only a suggestion.
+
+The index that guarantees one open loan per copy is narrowed to confirmed rows,
+and a second index allows at most one *unconfirmed* suggestion per copy. Both
+may exist for the same copy at once, and that is the point: a suggestion made
+in the office never blocks a librarian lending the book in their hand.
+
+Rows that pre-date this migration were all made at the desk, so they are
+confirmed by the fact of their existence. A checkout made here is confirmed as
+it is written.
+
+`staff_users` gains **`email`**, which is how an account prepared in the office
+is matched to the person who signs in here. **`password_hash` never travels.**
+An account that arrives from the office is stored with a stand-in that no
+password can match; it is listed, and an administrator here gives it a password
+before it can be used.
+
+### `sync_state`
+
+One row, `id = 1`. `connected_email`, `refresh_token`, `last_pulled_at`,
+`last_pushed_at`, `last_attempt_at`, `last_error`.
+
+Kept out of `app_settings`, which is a fixed list of the library's preferences:
+a refresh token is not a preference, and storing it there would have it reported
+as an unknown setting on every read.
+
+**The refresh token is stored in clear.** It is worth exactly what the library
+computer's own database is worth — which already holds every pupil and every
+loan — so encrypting it with a key kept on the same disk would protect nothing
+and imply a guarantee that is not there. An administrator revokes it from the
+office rather than from here.
+
+Nothing in this migration makes the network necessary. Every column is
+optional, and a library that never connects behaves exactly as it did before.
+
 ## Conventions for every future table
 
 - **`id` is internal. `public_id` is external.** APIs and integrations quote

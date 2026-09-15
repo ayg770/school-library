@@ -439,3 +439,73 @@ either a paid server or a system the library could not reason about.
 The office needs to lend or return books in earnest, rather than occasionally
 and by suggestion. That would make both sides real writers of circulation, and
 this design would owe an answer it currently does not.
+
+## AD-10 — The sync is a download of decisions and an upload of events
+
+**Status:** accepted · Phase 7
+
+AD-9 decided *who owns what*. This decides what the exchange between them
+actually does, now that it exists.
+
+### The shape
+
+**Down:** categories, shelf locations, classes, accounts, books, pupils,
+copies, loans — in that order, so that a row's references have already arrived
+when it lands. **Up:** loans, and only loans.
+
+There is no merge step, because there is nothing to merge. Two writers that
+never touch the same row need a union, not a resolution. The one place the two
+sides meet is a copy of a book, and the rule there is AD-9's: the person holding
+the book wins.
+
+### Identity is `public_id`, and a barcode can claim one
+
+Both schemas carry `public_id`, and the exchange matches on it. But the library
+computer may already hold the same books under its own ids, because a librarian
+imported a spreadsheet before the two sides ever met.
+
+So for the tables that carry a number printed on a physical thing — a copy's
+barcode, a pupil's card, an account's username — a local row **adopts** the
+online id rather than colliding with it on a unique index. A barcode is the
+same barcode whoever wrote it down.
+
+### The mark is a timestamp, and the two sides spell it differently
+
+Postgres returns `2026-09-14T21:02:33.123456+00:00`; this side writes
+`2026-09-14T21:02:33.123Z`. Same instant, different text — and "everything
+changed since" is compared as text. Every timestamp is therefore normalised on
+the way in, so the mark means what it says.
+
+The mark is compared with `>=`, not `>`. Applying a row twice is harmless
+because every write is an upsert by id; missing one is not.
+
+### A refused row is named, not swallowed
+
+Loans upload in one request. If that request fails, they are retried one at a
+time — because a single unacceptable row would otherwise take a hundred good
+loans down with it, and because "this loan, for this child, because the pupil
+does not exist online yet" is something a librarian can act on, while "the
+upload failed" is not.
+
+The mark only advances past loans the online library actually accepted.
+
+### Row level security enforces AD-9, not the screens
+
+The office site could hide its buttons from a librarian and the REST API would
+still be there. So the rule lives in Postgres: staff may read; **circulation may
+be written by a librarian; everything else belongs to an administrator.**
+Verified against the live database — a librarian account reads 2,039 books,
+changes none of them, cannot add a pupil, cannot promote itself, and reaches
+the loans table.
+
+### What this costs
+
+The library computer holds a refresh token, which is a credential. It is worth
+what that computer's database is already worth, and it is revocable from the
+office without changing anyone's password. That is the trade.
+
+### Revisit when
+
+A second library computer appears. Two desks writing circulation against one
+online copy is a different problem, and this design does not solve it.
+

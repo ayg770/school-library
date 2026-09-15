@@ -200,3 +200,27 @@ export {
 // --- Home screen ---
 export { getDashboardSummary, type DashboardSummary } from './domain/dashboard.js';
 export { intakeCopy, type IntakeInput, type IntakeResult } from './domain/intake.js';
+
+// --- The online library (Phase 7) ---
+export {
+  connectSync,
+  disconnectSync,
+  syncStatus,
+  synchronise,
+  type SyncStatus,
+} from './sync/service.js';
+export { confirmOfficeLoans, runSync } from './sync/run.js';
+export { applyTable } from './sync/pull.js';
+export { loansToPush, pushLoans } from './sync/push.js';
+export { readSyncState, writeSyncState, type SyncState } from './sync/state.js';
+export { SUPABASE_URL, SyncAuthError, SyncNetworkError } from './sync/supabase.js';
+export {
+  PULL_TABLES,
+  type PullTable,
+  type RemoteLibrary,
+  type RemoteLoan,
+  type RemoteRow,
+  type SyncProblem,
+  type SyncReport,
+  type TableResult,
+} from './sync/types.js';

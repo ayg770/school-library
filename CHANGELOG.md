@@ -8,6 +8,39 @@ is the highest applied migration, shown on the Settings and Support screen.
 
 ## [Unreleased]
 
+### Added — The sync between the library computer and the online library
+
+- **The catalogue, the pupils and the accounts come down; circulation goes up.**
+  One button on a new **סנכרון** screen. Nothing else changes: lending and
+  returning work with the cable out, exactly as before, and a sync that never
+  happens delays a report rather than a child borrowing a book.
+- **A checkout proposed from the office becomes real only here.** If the copy
+  is already lent from the desk, the suggestion keeps waiting and says so —
+  the person holding the book wins.
+- **A copy imported here before the two sides met adopts the online id**
+  instead of colliding with it. Matching is on the barcode, which is the same
+  number whoever wrote it down.
+- **An account created in the office arrives without a password.** The office
+  decides who the staff are; this computer decides how they prove it. A
+  password set here never travels, and the account cannot sign in until an
+  administrator here gives it one.
+- **A loan the online library refuses is named, with the reason**, and the rest
+  are still sent. The mark only advances past what was actually accepted, so a
+  refused loan is retried rather than forgotten.
+- **Who may change what is now enforced by Postgres, not by the screens.**
+  Staff may read; circulation may be written by a librarian; the catalogue, the
+  pupils and the accounts belong to an administrator. Verified against the live
+  database: a librarian reads 2,039 books, changes none, cannot add a pupil and
+  cannot promote itself.
+- **Fixed while building this:** a checkout made at the desk was not marked
+  confirmed, which under the new index would have let the same copy go out
+  twice. Caught by a test, not in the library.
+- **Fixed while building this:** Postgres and SQLite spell a timestamp
+  differently, and "everything changed since" is compared as text — so a loan
+  could have looked older than it was and been re-sent for ever. Every
+  timestamp is normalised on the way in.
+
+
 ### Added — The office site
 
 - **A site for managing the library from anywhere**, published to GitHub Pages

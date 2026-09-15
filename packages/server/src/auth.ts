@@ -41,6 +41,10 @@ const PUBLIC_ROUTES = new Set([
 function isAdminOnly(method: string, path: string): boolean {
   if (path.startsWith('/api/v1/staff')) return true;
   if (path.startsWith('/api/v1/backups') && method !== 'GET') return true;
+  // Deciding which online library this computer belongs to is a decision about
+  // the whole institution, not about today's shift. Running an exchange is not:
+  // that is ordinary work, and falls through to the librarian rule below.
+  if (path.startsWith('/api/v1/sync/connection')) return true;
   return false;
 }
 
