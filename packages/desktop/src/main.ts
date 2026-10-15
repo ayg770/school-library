@@ -1,10 +1,11 @@
 import path from 'node:path';
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, net, shell } from 'electron';
 import {
   APP_VERSION,
   createAppContext,
   createLogger,
   resolveAppPaths,
+  useNetworkTransport,
   type AppContext,
   type Logger,
 } from '@school-library/core';
@@ -63,8 +64,29 @@ const SQLITE_BINDING = path.join(
  * window is told the port, so nothing needs a fixed one (§20 still requires
  * loopback, which is where it binds).
  */
+/**
+ * Sends the sync's requests through Chromium rather than Node.
+ *
+ * Node carries its own list of trusted certificate authorities and ignores the
+ * proxy Windows was configured with. On a home machine the difference never
+ * shows. On a school network it is the whole story: the library computer sits
+ * behind UserGate, a filter that terminates every secure connection and
+ * presents a certificate it signed itself. Windows is told to trust it, so the
+ * browser on that desk reached the online library — and this application,
+ * asking over Node, was refused before a single byte left the building.
+ *
+ * `net.fetch` is the same stack the browser window uses, so the application
+ * now sees the network the way the computer's administrator configured it.
+ * Verification is not relaxed anywhere; it is done against the store Windows
+ * keeps instead of one compiled in months ago.
+ */
+function useSystemNetworkStack(): void {
+  useNetworkTransport((input, init) => net.fetch(input as RequestInfo, init));
+}
+
 async function startService(logger: Logger): Promise<string> {
   process.env.LIBRARY_SQLITE_BINDING = SQLITE_BINDING;
+  useSystemNetworkStack();
   context = createAppContext({ logger });
   service = buildApp(context, { uiDir: UI_DIR });
 
