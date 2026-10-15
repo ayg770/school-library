@@ -214,7 +214,13 @@ export { confirmOfficeLoans, runSync } from './sync/run.js';
 export { applyTable } from './sync/pull.js';
 export { markSynced, pushTable, rowsToPush } from './sync/push.js';
 export { readSyncState, writeSyncState, type SyncState } from './sync/state.js';
-export { SUPABASE_URL, SyncAuthError, SyncNetworkError } from './sync/supabase.js';
+export {
+  SUPABASE_URL,
+  SyncAuthError,
+  SyncNetworkError,
+  useNetworkTransport,
+  type FetchLike,
+} from './sync/supabase.js';
 export {
   PULL_TABLES,
   PUSH_TABLES,

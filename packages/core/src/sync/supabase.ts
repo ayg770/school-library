@@ -39,8 +39,38 @@ export interface Connection {
 export class SyncAuthError extends Error {}
 export class SyncNetworkError extends Error {}
 
+/** The shape of `fetch`, so a host can supply its own. */
+export type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
+let transport: FetchLike | null = null;
+
+/**
+ * Lets the host decide how requests actually leave the computer.
+ *
+ * A school computer is rarely plugged straight into the internet. It sits
+ * behind a filter that inspects secure connections by presenting a certificate
+ * of its own, and often behind a proxy set once in Windows. The operating
+ * system is told about both; a runtime that carries its own list of trusted
+ * authorities and ignores the system proxy is not, so its requests fail before
+ * they leave the machine.
+ *
+ * That is not a theoretical worry. It is what happened on the library computer
+ * on the first attempt: the browser reached the online library from the same
+ * desk, on the same network, in the same minute, and this application did not.
+ * Nothing arrived at the other end to say why.
+ *
+ * So the desktop application hands in Electron's own `fetch`, which is the
+ * browser's network stack and therefore uses what Windows was told. Nothing is
+ * weakened: certificates are still verified, against the store the school's
+ * administrator controls rather than one this process shipped with.
+ */
+export function useNetworkTransport(fetchImpl: FetchLike): void {
+  transport = fetchImpl;
+}
+
 function newClient(): SupabaseClient {
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    ...(transport === null ? {} : { global: { fetch: transport } }),
     auth: {
       // The session is kept in the library's own database, not in a browser
       // store this process does not have. Nothing is written to disk by the
@@ -121,12 +151,49 @@ function translate(error: { message: string; code?: string }): Error {
   if (/JWT|token|Unauthorized|not authenticated/i.test(message)) {
     return new SyncAuthError('החיבור לאונליין פג. התחבר מחדש במסך הסנכרון.');
   }
-  if (/fetch failed|network|ENOTFOUND|ECONNREFUSED|ETIMEDOUT/i.test(message)) {
-    return new SyncNetworkError('אין חיבור לאינטרנט. הספרייה ממשיכה לעבוד; נסה שוב מאוחר יותר.');
-  }
+  if (looksLikeNetworkFailure(message)) return networkError(message);
+
   const wrapped = new Error(message);
   if (error.code !== undefined) wrapped.name = error.code;
   return wrapped;
+}
+
+/**
+ * Whether a failure happened before the online library ever saw the request.
+ *
+ * Certificates are on this list because of UserGate, the filter the school
+ * runs: it presents a certificate of its own for every site, which Windows is
+ * told to trust and a bundled list of authorities is not. The failure that
+ * produces has nothing to do with the account, and saying otherwise sends
+ * someone hunting for a password that was right all along.
+ */
+function looksLikeNetworkFailure(message: string): boolean {
+  return /fetch failed|failed to fetch|network|socket|certificate|self[- ]signed|unable to verify|issuer|CERT_|ERR_(?:CERT|SSL|PROXY|NAME|CONNECTION|INTERNET)|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|EAI_AGAIN|EPROTO|proxy|tunnel/i.test(
+    message,
+  );
+}
+
+/**
+ * The real reason, in words a librarian can act on, with the technical text
+ * kept where support can read it.
+ */
+function networkError(detail: string): SyncNetworkError {
+  return new SyncNetworkError(
+    'התוכנה לא הצליחה להגיע לספרייה שבאונליין. ייתכן שאין חיבור לאינטרנט, או שמסנן ' +
+      `הרשת של בית הספר חוסם את החיבור. הספרייה ממשיכה לעבוד כרגיל. (${detail})`,
+  );
+}
+
+/**
+ * Tells a refused account from a request that never arrived.
+ *
+ * Supabase answers a wrong password with a real HTTP status. A request that
+ * never reached it has no status at all, and the client reports that as zero.
+ * Treating the two the same is what made the first connection attempt on the
+ * library computer blame a password that was correct.
+ */
+function isCredentialRejection(error: { status?: number | undefined }): boolean {
+  return typeof error.status === 'number' && error.status >= 400 && error.status < 500;
 }
 
 /** Signs in for the first time, with the credentials an administrator typed. */
@@ -134,7 +201,12 @@ export async function connectWithPassword(email: string, password: string): Prom
   const client = newClient();
   const { data, error } = await client.auth.signInWithPassword({ email, password });
 
-  if (error !== null) throw new SyncAuthError('כתובת הדוא״ל או הסיסמה שגויים.');
+  if (error !== null) {
+    if (isCredentialRejection(error)) {
+      throw new SyncAuthError('כתובת הדוא״ל או הסיסמה שגויים.');
+    }
+    throw networkError(error.message);
+  }
   if (data.session === null) {
     throw new SyncAuthError('החשבון עדיין לא אושר בדוא״ל. אשר אותו ונסה שוב.');
   }
@@ -153,6 +225,10 @@ export async function connectWithToken(refreshToken: string): Promise<Connection
   const client = newClient();
   const { data, error } = await client.auth.refreshSession({ refresh_token: refreshToken });
 
+  // Same distinction as above: a token the online library rejected has to be
+  // replaced by hand, and a request that never arrived must not send a
+  // librarian to the connect form to fix a network fault.
+  if (error !== null && !isCredentialRejection(error)) throw networkError(error.message);
   if (error !== null || data.session === null) {
     throw new SyncAuthError('החיבור לאונליין פג. התחבר מחדש במסך הסנכרון.');
   }

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   applyTable,
+  checkinByBarcode,
   checkoutCopy,
   confirmOfficeLoans,
   createBook,
@@ -391,13 +392,20 @@ describe('sync', () => {
       await runSync(db, remote);
       remote.written.clear();
 
-      db.prepare(
-        "UPDATE loans SET returned_at = '2026-09-16T00:00:00.000Z', updated_at = '2026-09-16T00:00:00.000Z'",
-      ).run();
+      // Returned the way a librarian returns a book, rather than by writing a
+      // date into the row. The earlier version of this test wrote a fixed one,
+      // and quietly stopped testing anything the day the calendar passed it: a
+      // return stamped before the loan is not a change, and the sync was right
+      // to decline to send it.
+      checkinByBarcode(db, '001796');
+
+      const returnedAt = (
+        db.prepare('SELECT returned_at FROM loans').get() as { returned_at: string }
+      ).returned_at;
 
       const report = await runSync(db, remote);
       expect(report.pushed).toBe(1);
-      expect(remote.received()[0]!.returned_at).toBe('2026-09-16T00:00:00.000Z');
+      expect(remote.received()[0]!.returned_at).toBe(returnedAt);
     });
   });
 
