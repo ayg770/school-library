@@ -110,6 +110,21 @@ export {
   type UpdateCopyInput,
 } from './domain/copies.js';
 
+export {
+  currentRound,
+  finishRound,
+  listMissing,
+  listRounds,
+  recordScan,
+  startRound,
+  stocktakeProgress,
+  type MissingCopy,
+  type ScanInput,
+  type ScanResult,
+  type StocktakeProgress,
+  type StocktakeRound,
+} from './domain/stocktake.js';
+
 // --- Circulation (Phase 2) ---
 export {
   listAudit,

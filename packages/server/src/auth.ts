@@ -45,6 +45,11 @@ function isAdminOnly(method: string, path: string): boolean {
   // the whole institution, not about today's shift. Running an exchange is not:
   // that is ordinary work, and falls through to the librarian rule below.
   if (path.startsWith('/api/v1/sync/connection')) return true;
+  // Opening or closing a count decides what every progress number in the
+  // building means. Scanning a book into one is ordinary work and falls
+  // through to the librarian rule, which is the point: the volunteers do the
+  // counting, and only an administrator declares a count begun or done.
+  if (path.startsWith('/api/v1/stocktake/rounds')) return true;
   return false;
 }
 

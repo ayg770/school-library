@@ -11,6 +11,7 @@ import { registerCirculationRoutes } from './routes/circulation.js';
 import { registerClassRoutes } from './routes/classes.js';
 import { registerHealthRoutes } from './routes/health.js';
 import { registerImportRoutes } from './routes/imports.js';
+import { registerStocktakeRoutes } from './routes/stocktake.js';
 import { registerStudentRoutes } from './routes/students.js';
 import { registerSyncRoutes } from './routes/sync.js';
 import { registerSystemRoutes } from './routes/system.js';
@@ -76,6 +77,7 @@ export function buildApp(context: AppContext, options: BuildAppOptions = {}): Fa
   registerTaxonomyRoutes(app, context);
   registerBookRoutes(app, context);
   registerCirculationRoutes(app, context);
+  registerStocktakeRoutes(app, context);
   registerBackupRoutes(app, context);
   registerImportRoutes(app, context);
   registerSyncRoutes(app, context);
