@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, api, formatDate } from '../api.js';
+import { useScanner } from '../components/useScanner.js';
 
 interface ScanEntry {
   readonly key: number;
@@ -21,24 +22,21 @@ type Feedback =
  * librarian actually wants to see.
  */
 export function ReturnScreen(): JSX.Element {
-  const [barcode, setBarcode] = useState('');
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [log, setLog] = useState<ScanEntry[]>([]);
   const [busy, setBusy] = useState(false);
 
   const input = useRef<HTMLInputElement>(null);
+  const scanner = useScanner({ onScan: (barcode) => void scan(barcode), enabled: !busy });
 
   useEffect(() => {
     input.current?.focus();
   }, []);
 
-  async function scan(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    if (barcode === '' || busy) return;
+  async function scan(scanned: string): Promise<void> {
+    if (scanned === '' || busy) return;
 
     setBusy(true);
-    const scanned = barcode;
-    setBarcode('');
 
     try {
       const { loan, wasOverdue } = await api.checkin(scanned);
@@ -90,16 +88,20 @@ export function ReturnScreen(): JSX.Element {
       <section className="card">
         <h2>החזרה</h2>
         <p className="hint">סרוק את ברקוד הספר. אין צורך בכרטיס התלמיד.</p>
-        <form onSubmit={(event) => void scan(event)} className="scan-field">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            scanner.submit();
+          }}
+          className="scan-field"
+        >
           <input
+            {...scanner.inputProps}
             ref={input}
             type="text"
-            value={barcode}
-            onChange={(event) => setBarcode(event.target.value)}
             placeholder="סרוק את ברקוד הספר"
             aria-label="ברקוד הספר"
             dir="ltr"
-            autoComplete="off"
           />
         </form>
       </section>

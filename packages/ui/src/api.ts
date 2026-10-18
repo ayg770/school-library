@@ -25,6 +25,41 @@ export interface SystemInfo {
   };
 }
 
+/** Counting the shelves — PRODUCT_SPEC.md §12. */
+export interface StocktakeRound {
+  publicId: string;
+  name: string;
+  startedAt: string;
+  finishedAt: string | null;
+  note: string | null;
+}
+
+export interface StocktakeProgress {
+  round: StocktakeRound | null;
+  expected: number;
+  seen: number;
+  missing: number;
+  byCondition: Record<ConditionStatus, number>;
+}
+
+export interface ScanResult {
+  found: boolean;
+  barcode: string;
+  copy: BookCopy | null;
+  repeat: boolean;
+  onLoanTo: string | null;
+}
+
+export interface MissingCopy {
+  publicId: string;
+  barcode: string;
+  title: string;
+  author: string | null;
+  shelfName: string | null;
+  lastSeen: string | null;
+  onLoanTo: string | null;
+}
+
 export interface SyncStatus {
   connected: boolean;
   connectedEmail: string | null;
@@ -149,6 +184,7 @@ export interface BookCopy {
   publicId: string;
   bookPublicId: string;
   bookTitle: string;
+  bookAuthor: string | null;
   barcode: string;
   shelfPublicId: string | null;
   shelfName: string | null;
@@ -520,6 +556,26 @@ export const api = {
   disconnectSync: () => request<SyncStatus>('/api/v1/sync/connection', { method: 'DELETE' }),
   runSync: () =>
     request<{ report: SyncReport; status: SyncStatus }>('/api/v1/sync/run', { method: 'POST' }),
+
+  stocktake: () => request<StocktakeProgress>('/api/v1/stocktake'),
+  startStocktake: (name: string) =>
+    request<StocktakeRound>('/api/v1/stocktake/rounds', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  finishStocktake: () =>
+    request<StocktakeRound>('/api/v1/stocktake/rounds/finish', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+  /** One book, seen. The progress comes back with it, one book ahead. */
+  scanForStocktake: (barcode: string, conditionStatus?: ConditionStatus) =>
+    request<{ result: ScanResult; progress: StocktakeProgress }>('/api/v1/stocktake/scan', {
+      method: 'POST',
+      body: JSON.stringify({ barcode, ...(conditionStatus ? { conditionStatus } : {}) }),
+    }),
+  missingCopies: (limit = 200) =>
+    request<{ items: MissingCopy[]; total: number }>(`/api/v1/stocktake/missing?limit=${limit}`),
 };
 
 /** Dates are shown in the browser's locale, which on the library PC is Hebrew. */
