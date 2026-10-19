@@ -1,5 +1,8 @@
 import {
   finishRound,
+  listReports,
+  reportMismatch,
+  resolveReport,
   listMissing,
   listRounds,
   recordScan,
@@ -29,6 +32,15 @@ const scanBody = z.object({
 });
 
 const roundBody = z.object({ name: z.string().min(1) });
+const reportBody = z.object({
+  barcode: z.string().min(1),
+  kind: z.string().optional(),
+  actualTitle: z.string().optional(),
+  note: z.string().optional(),
+});
+const resolveBody = z.object({ resolution: z.string().optional() });
+const reportParams = z.object({ publicId: z.string().min(1) });
+const reportQuery = z.object({ resolved: z.enum(['true', 'false']).optional() });
 const finishBody = z.object({ note: z.string().optional() });
 const missingQuery = z.object({
   limit: z.coerce.number().int().positive().max(500).optional(),
@@ -69,6 +81,35 @@ export function registerStocktakeRoutes(app: FastifyInstance, context: AppContex
       userPublicId: request.staffUser?.publicId ?? null,
     });
     return reply.send({ result, progress: stocktakeProgress(context.db) });
+  });
+
+  /**
+   * "This is not that book."
+   *
+   * Filed in one press from the desk, because the person holding the book
+   * cannot tell whether the sticker or the spreadsheet is wrong, and must not
+   * have to stop counting to find out.
+   */
+  app.post('/api/v1/catalogue-reports', async (request, reply) => {
+    const body = parseInput(reportBody, request.body, 'דיווח');
+    const report = reportMismatch(context.db, {
+      ...body,
+      userPublicId: request.staffUser?.publicId ?? null,
+    });
+    return reply.code(201).send(report);
+  });
+
+  app.get('/api/v1/catalogue-reports', async (request, reply) => {
+    const { resolved } = parseInput(reportQuery, request.query, 'סינון');
+    return reply.send(
+      listReports(context.db, resolved === undefined ? {} : { resolved: resolved === 'true' }),
+    );
+  });
+
+  app.post('/api/v1/catalogue-reports/:publicId/resolve', async (request, reply) => {
+    const { publicId } = parseInput(reportParams, request.params, 'כתובת');
+    const { resolution } = parseInput(resolveBody, request.body ?? {}, 'טיפול');
+    return reply.send(resolveReport(context.db, publicId, resolution));
   });
 
   /** What has not turned up yet, with the borrower named where there is one. */

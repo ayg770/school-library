@@ -7,6 +7,7 @@ import {
   plural,
   type Book,
   type BookDetail,
+  type ConditionStatus,
   type CatalogueBreakdown,
   type Category,
   type ShelfLocation,
@@ -44,6 +45,42 @@ interface CopyForm {
 }
 
 const EMPTY_COPY: CopyForm = { barcode: '', shelfPublicId: '', conditionNote: '' };
+
+
+/**
+ * A title has copies; a librarian asks about the book.
+ *
+ * These four answer "what state is it in" and "where is it" across however
+ * many copies exist, because that is the question actually asked at the desk —
+ * nobody asks about copy three of five.
+ */
+
+/** The worst state any copy is in: a damaged copy is the news, not the fine one. */
+function worstCondition(book: BookDetail): ConditionStatus {
+  const order: readonly ConditionStatus[] = ['lost', 'damaged', 'repair', 'withdrawn', 'normal'];
+  for (const status of order) {
+    if (book.copies.some((copy) => copy.conditionStatus === status)) return status;
+  }
+  return 'normal';
+}
+
+/** The most recent time any copy was confirmed present on the shelf. */
+function lastChecked(book: BookDetail): string | null {
+  const seen = book.copies.map((copy) => copy.verifiedAt).filter((at): at is string => at !== null);
+  return seen.length === 0 ? null : seen.sort().at(-1)!;
+}
+
+function onLoanCount(book: BookDetail): number {
+  return book.copies.filter((copy) => copy.onLoan).length;
+}
+
+/** Who is holding them, named — "2 on loan" sends nobody anywhere. */
+function borrowers(book: BookDetail): string | null {
+  const names = book.copies
+    .filter((copy) => copy.onLoan && copy.borrowerName !== null)
+    .map((copy) => copy.borrowerName!);
+  return names.length === 0 ? null : names.join(' · ');
+}
 
 export function BooksScreen(): JSX.Element {
   const [books, setBooks] = useState<Book[]>([]);
@@ -309,15 +346,44 @@ export function BooksScreen(): JSX.Element {
 
       {selected !== null && (
         <section className="card">
+          <button type="button" className="btn-back" onClick={() => setSelected(null)}>
+            → חזרה לרשימת הספרים
+          </button>
+
           <div className="card-header">
             <h2>{selected.title}</h2>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button type="button" className="btn" onClick={() => startEdit(selected)}>
-                עריכת פרטי הספר
-              </button>
-              <button type="button" className="btn" onClick={() => setSelected(null)}>
-                סגור
-              </button>
+            <button type="button" className="btn btn-primary" onClick={() => startEdit(selected)}>
+              שינוי פרטים
+            </button>
+          </div>
+
+          {/* The two questions actually asked at the desk, before any detail:
+              what state is this book in, and is it out with somebody. */}
+          <div className="kpi-row">
+            <div className={`tile ${worstCondition(selected) === 'normal' ? '' : 'tile-warn'}`}>
+              <div className="label">מצב הספר</div>
+              <div className="value" style={{ fontSize: '1.2rem' }}>
+                {CONDITION_LABELS[worstCondition(selected)]}
+              </div>
+              <div className="note">
+                {lastChecked(selected) === null
+                  ? 'עוד לא נבדק'
+                  : `נבדק ${formatDate(lastChecked(selected))}`}
+              </div>
+            </div>
+
+            <div className={`tile ${onLoanCount(selected) > 0 ? 'tile-warn' : ''}`}>
+              <div className="label">מצב השאלה</div>
+              <div className="value" style={{ fontSize: '1.2rem' }}>
+                {onLoanCount(selected) === 0 ? 'על המדף' : `מושאל (${onLoanCount(selected)})`}
+              </div>
+              <div className="note">{borrowers(selected) ?? 'אף עותק אינו מושאל'}</div>
+            </div>
+
+            <div className="tile">
+              <div className="label">עותקים</div>
+              <div className="value">{selected.copyCount}</div>
+              <div className="note">בקטלוג</div>
             </div>
           </div>
 
@@ -326,10 +392,14 @@ export function BooksScreen(): JSX.Element {
             <dd>{selected.authorText ?? '—'}</dd>
             <dt>קטגוריה</dt>
             <dd>{selected.categoryName ?? '—'}</dd>
+            <dt>מספרים סידוריים</dt>
+            <dd className="value-ltr">
+              {selected.copies.map((copy) => copy.barcode).join(' · ') || '—'}
+            </dd>
             <dt>מסת"ב</dt>
             <dd className="value-ltr">{selected.isbn13 ?? selected.isbn10 ?? '—'}</dd>
-            <dt>עותקים</dt>
-            <dd>{selected.copyCount}</dd>
+            <dt>עודכן</dt>
+            <dd>{formatDate(selected.updatedAt)}</dd>
           </dl>
 
           <h2 style={{ marginTop: '1.5rem' }}>עותקים פיזיים</h2>
@@ -415,6 +485,11 @@ export function BooksScreen(): JSX.Element {
         </section>
       )}
 
+      {/* The catalogue is hidden while a book is open: a card with the list
+          still running underneath it is two screens at once, and the reader
+          cannot tell which one they are in. */}
+      {selected === null && (
+        <>
       {/*
         The catalogue by subject and by shelf.
         
@@ -589,23 +664,34 @@ export function BooksScreen(): JSX.Element {
                 <tr>
                   <th>שם הספר</th>
                   <th>מחבר</th>
+                  <th>מס׳ סידורי</th>
                   <th>קטגוריה</th>
                   <th>עותקים</th>
-                  <th className="row-actions" />
                 </tr>
               </thead>
               <tbody>
+                {/* The whole row opens the book. A target the width of the
+                    screen cannot be missed; a link at the end of it can, and
+                    was, every time. */}
                 {books.map((book) => (
-                  <tr key={book.publicId} className={book.active ? '' : 'is-inactive'}>
+                  <tr
+                    key={book.publicId}
+                    className={`row-link ${book.active ? '' : 'is-inactive'}`}
+                    onClick={() => void openBook(book.publicId)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      void openBook(book.publicId);
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`פתח את ${book.title}`}
+                  >
                     <td>{book.title}</td>
                     <td>{book.authorText ?? '—'}</td>
+                    <td className="value-ltr">{book.barcodes.join(' · ') || '—'}</td>
                     <td>{book.categoryName ?? '—'}</td>
                     <td>{book.copyCount}</td>
-                    <td className="row-actions">
-                      <button type="button" className="btn-link" onClick={() => void openBook(book.publicId)}>
-                        פתח
-                      </button>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -613,6 +699,8 @@ export function BooksScreen(): JSX.Element {
           </div>
         )}
       </section>
+        </>
+      )}
     </>
   );
 }

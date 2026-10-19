@@ -56,6 +56,47 @@ export function HomeScreen({ displayName, role, onGo }: HomeScreenProps): JSX.El
 
       {error !== null && <Notice kind="error">{error}</Notice>}
 
+      {/*
+        What the volunteers came to do, before anything else.
+        
+        The librarians here are children. They are not going to read a sidebar
+        and work out which entry means "a child wants to borrow this". Two
+        targets, coloured differently, large enough to hit from a step away,
+        and above everything — the numbers are for the adult, and the adult can
+        scroll.
+      */}
+      {canLend && (
+        <div className="big-actions">
+          <button type="button" className="big-action big-action-lend" onClick={() => onGo('checkout')}>
+            <span className="big-action-icon" aria-hidden="true">📚</span>
+            <span className="big-action-title">השאלה</span>
+            <span className="big-action-subtitle">ילד לוקח ספר</span>
+          </button>
+          <button type="button" className="big-action big-action-return" onClick={() => onGo('return')}>
+            <span className="big-action-icon" aria-hidden="true">↩️</span>
+            <span className="big-action-title">החזרה</span>
+            <span className="big-action-subtitle">ילד מחזיר ספר</span>
+          </button>
+        </div>
+      )}
+
+      {canLend && (
+        <div className="action-row">
+          <button type="button" className="action" onClick={() => onGo('stocktake')}>
+            <div className="title">בדיקת מלאי</div>
+            <div className="subtitle">סריקת המדפים</div>
+          </button>
+          <button type="button" className="action" onClick={() => onGo('intake')}>
+            <div className="title">קליטת ספרים</div>
+            <div className="subtitle">הוספת ספר חדש למדף</div>
+          </button>
+          <button type="button" className="action" onClick={() => onGo('books')}>
+            <div className="title">חיפוש ספר</div>
+            <div className="subtitle">מי לקח, ואיפה הוא</div>
+          </button>
+        </div>
+      )}
+
       {summary !== null && (
         <>
           <div className="kpi-row">
@@ -87,22 +128,6 @@ export function HomeScreen({ displayName, role, onGo }: HomeScreenProps): JSX.El
             </div>
           </div>
 
-          {canLend && (
-            <div className="action-row">
-              <button type="button" className="action action-primary" onClick={() => onGo('checkout')}>
-                <div className="title">השאלה</div>
-                <div className="subtitle">סרוק כרטיס תלמיד, ואז ספרים</div>
-              </button>
-              <button type="button" className="action" onClick={() => onGo('return')}>
-                <div className="title">החזרה</div>
-                <div className="subtitle">סריקת הספר בלבד</div>
-              </button>
-              <button type="button" className="action" onClick={() => onGo('intake')}>
-                <div className="title">קליטת ספרים</div>
-                <div className="subtitle">הוספת ספר חדש למדף</div>
-              </button>
-            </div>
-          )}
         </>
       )}
 

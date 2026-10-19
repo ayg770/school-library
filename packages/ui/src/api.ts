@@ -50,6 +50,21 @@ export interface ScanResult {
   onLoanTo: string | null;
 }
 
+export type ReportKind = 'wrong_book' | 'unreadable' | 'other';
+
+export interface CatalogueReport {
+  publicId: string;
+  barcode: string;
+  claimedTitle: string | null;
+  actualTitle: string | null;
+  kind: ReportKind;
+  note: string | null;
+  reportedBy: string | null;
+  reportedAt: string;
+  resolvedAt: string | null;
+  resolution: string | null;
+}
+
 export interface MissingCopy {
   publicId: string;
   barcode: string;
@@ -185,12 +200,16 @@ export interface BookCopy {
   bookPublicId: string;
   bookTitle: string;
   bookAuthor: string | null;
+  categoryName: string | null;
   barcode: string;
   shelfPublicId: string | null;
   shelfName: string | null;
   conditionStatus: ConditionStatus;
   conditionNote: string | null;
+  /** When this copy was last confirmed present on the shelf. */
+  verifiedAt: string | null;
   active: boolean;
+  updatedAt: string;
 }
 
 export interface Book {
@@ -207,6 +226,10 @@ export interface Book {
   notes: string | null;
   active: boolean;
   copyCount: number;
+  /** The numbers printed on the stickers, so a list can be checked against a shelf. */
+  barcodes: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BookCopyWithLoan extends BookCopy {
@@ -576,6 +599,22 @@ export const api = {
     }),
   missingCopies: (limit = 200) =>
     request<{ items: MissingCopy[]; total: number }>(`/api/v1/stocktake/missing?limit=${limit}`),
+
+  /** "This is not that book" — one press from the desk. */
+  reportMismatch: (barcode: string, body: { actualTitle?: string; note?: string } = {}) =>
+    request<CatalogueReport>('/api/v1/catalogue-reports', {
+      method: 'POST',
+      body: JSON.stringify({ barcode, ...body }),
+    }),
+  catalogueReports: (resolved?: boolean) =>
+    request<{ items: CatalogueReport[]; total: number; open: number }>(
+      `/api/v1/catalogue-reports${resolved === undefined ? '' : `?resolved=${resolved}`}`,
+    ),
+  resolveReport: (publicId: string, resolution: string) =>
+    request<CatalogueReport>(`/api/v1/catalogue-reports/${publicId}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution }),
+    }),
 };
 
 /** Dates are shown in the browser's locale, which on the library PC is Hebrew. */
