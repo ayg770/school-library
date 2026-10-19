@@ -24,8 +24,19 @@ type Feedback = { kind: 'ok' | 'error'; headline: string; detail: string; meta?:
  * the first — the same form, and it lands as a second copy rather than a
  * second book (§6).
  */
-export function IntakeScreen(): JSX.Element {
-  const [barcode, setBarcode] = useState('');
+export function IntakeScreen({
+  startingBarcode = null,
+}: {
+  /**
+   * A number that arrived from the stocktake screen.
+   *
+   * The librarian is holding the book and the number is already on screen;
+   * asking them to read it off and type it again is the step at which a book
+   * quietly stops being catalogued.
+   */
+  readonly startingBarcode?: string | null;
+} = {}): JSX.Element {
+  const [barcode, setBarcode] = useState(startingBarcode ?? '');
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [categoryPublicId, setCategoryPublicId] = useState('');

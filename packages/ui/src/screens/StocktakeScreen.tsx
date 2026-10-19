@@ -35,10 +35,17 @@ const CONDITION_LABELS: Record<ConditionStatus, string> = {
   withdrawn: 'הוצא משימוש',
 };
 
-/** The corrections worth one keypress each; the rest live in the book's page. */
-const QUICK_CONDITIONS: ReadonlyArray<{ status: ConditionStatus; key: string }> = [
-  { status: 'damaged', key: '2' },
-  { status: 'repair', key: '3' },
+/**
+ * The corrections offered at the desk; the rest live in the book's page.
+ *
+ * `normal` is here so a mark can be taken back. It had no button at all, which
+ * meant the conditions my own keyboard shortcuts set by accident could not be
+ * undone from the screen that set them.
+ */
+const QUICK_CONDITIONS: ReadonlyArray<{ status: ConditionStatus }> = [
+  { status: 'normal' },
+  { status: 'damaged' },
+  { status: 'repair' },
 ];
 
 interface LogEntry {
@@ -48,7 +55,14 @@ interface LogEntry {
   readonly at: string;
 }
 
-export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.Element {
+export function StocktakeScreen({
+  isAdmin,
+  onGo,
+}: {
+  readonly isAdmin: boolean;
+  /** Leaves for another screen, carrying a barcode where one is wanted. */
+  readonly onGo: (screen: string, barcode?: string) => void;
+}): JSX.Element {
   const [progress, setProgress] = useState<StocktakeProgress | null>(null);
   const [last, setLast] = useState<ScanResult | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
@@ -171,28 +185,20 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
     }
   }, [last]);
 
-  // The hands are on the scanner, not the mouse. A digit marks the book just
-  // counted; the field keeps focus throughout so the next scan needs nothing.
-  useEffect(() => {
-    function onKey(event: KeyboardEvent): void {
-      if (last?.copy === undefined || last.copy === null) return;
-      if (scanner.value !== '') return;
-
-      if (event.key === '4') {
-        event.preventDefault();
-        void reportWrongBook();
-        return;
-      }
-
-      const match = QUICK_CONDITIONS.find((entry) => entry.key === event.key);
-      if (match === undefined) return;
-      event.preventDefault();
-      void correct(match.status);
-    }
-
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [correct, last, reportWrongBook, scanner.value]);
+  /*
+   * There are no keyboard shortcuts here, and that is deliberate.
+   *
+   * There were: 2 for damaged, 3 for needs-repair, 4 for "not that book". They
+   * were a mistake of the worst kind, because a scanner is a keyboard that
+   * types digits. A barcode beginning with 2 marked the previous book damaged
+   * and lost its own first digit, so the remainder looked up a different book
+   * — which is exactly what the library reported, and which also quietly
+   * produced conditions and disagreements nobody had entered.
+   *
+   * The scanner and the shortcuts were speaking into the same channel. The
+   * fix is not a cleverer filter; it is that this channel belongs to the
+   * scanner alone. The corrections are buttons, reached by hand.
+   */
 
   async function startRound(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -354,16 +360,32 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
 
           <section className="card">
             <h2>סרוק ספר</h2>
-            <form onSubmit={(event) => { event.preventDefault(); scanner.submit(); }} className="scan-field">
+            <p className="hint" style={{ marginTop: 0 }}>
+              סרוק עם המכשיר, או הקלד את המספר שעל המדבקה ולחץ Enter.
+            </p>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                scanner.submit();
+              }}
+              className="scan-row"
+            >
               <input
                 {...scanner.inputProps}
                 ref={input}
                 type="text"
-                placeholder="סרוק את ברקוד הספר"
+                inputMode="numeric"
+                placeholder="סרוק או הקלד מספר"
                 aria-label="ברקוד הספר"
                 dir="ltr"
                 autoFocus
               />
+              {/* Typing by hand never submits itself — that is what keeps a
+                  half-typed number from being looked up — so there has to be
+                  something to press. */}
+              <button type="submit" className="btn btn-primary" disabled={scanner.value.trim() === ''}>
+                חפש
+              </button>
             </form>
 
                     {last !== null && (
@@ -372,11 +394,22 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
                 reported={reported.has(last.barcode)}
                 onCorrect={(status) => void correct(status)}
                 onReport={() => void reportWrongBook()}
+                onDismiss={() => {
+                  setLast(null);
+                  input.current?.focus();
+                }}
+                onCatalogue={() => onGo('intake', last.barcode)}
               />
             )}
           </section>
 
           <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+            {/* Stopping for now is the common case and ending the count is
+                the rare one, so stopping is the plain button here and ending
+                has been moved out of reach, below. They were side by side. */}
+            <button type="button" className="btn btn-primary" onClick={() => onGo('home')}>
+              הפסק לעכשיו — הכול נשמר
+            </button>
             <button type="button" className="btn" onClick={() => void showMissing()} disabled={busy}>
               הצג מה עוד לא נמצא
             </button>
@@ -385,11 +418,7 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
                 {showReports ? 'הסתר אי-התאמות' : `הצג אי-התאמות (${openReports})`}
               </button>
             )}
-            {isAdmin && (
-              <button type="button" className="btn" onClick={() => void finishRound()} disabled={busy}>
-                סיים את הסבב
-              </button>
-            )}
+
           </div>
         </>
       )}
@@ -447,6 +476,19 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
         </section>
       )}
 
+      {isAdmin && (
+        <section className="card card-quiet">
+          <h2>סיום הסבב</h2>
+          <p className="hint" style={{ marginTop: 0 }}>
+            רק כשסיימת לעבור על כל הספרייה. אחרי הסיום אי אפשר להמשיך לספור בסבב הזה — אם אתה
+            רק מפסיק להיום, פשוט צא מהמסך, הכול נשמר.
+          </p>
+          <button type="button" className="btn" onClick={() => void finishRound()} disabled={busy}>
+            סיים את הסבב
+          </button>
+        </section>
+      )}
+
       {missing !== null && (
         <section className="card">
           <div className="card-header">
@@ -496,23 +538,35 @@ function ScanOutcome({
   reported,
   onCorrect,
   onReport,
+  onDismiss,
+  onCatalogue,
 }: {
   readonly result: ScanResult;
   readonly reported: boolean;
   readonly onCorrect: (status: ConditionStatus) => void;
   readonly onReport: () => void;
+  /** Clears the panel. There was no way to put the last book down. */
+  readonly onDismiss: () => void;
+  /** Takes an unknown barcode to the intake screen, already filled in. */
+  readonly onCatalogue: () => void;
 }): JSX.Element {
   if (!result.found) {
     return (
       <div className="result result-error" role="status" aria-live="polite">
         <p className="result-headline">הספר הזה לא נמצא בקטלוג</p>
         <p className="result-detail">ברקוד {result.barcode}</p>
-        <p className="result-meta">
-          אם זה ספר חדש — הוסף אותו במסך <strong>קליטה</strong> עם הברקוד הזה, וסרוק שוב.
-        </p>
+        <p className="result-meta">הספר הזה אינו בקטלוג. אפשר לקלוט אותו עכשיו.</p>
         <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.6rem' }}>
+          {/* The book is in their hand and the number is on the screen.
+              Making them retype it elsewhere is how books stay uncatalogued. */}
+          <button type="button" className="btn btn-primary" onClick={onCatalogue}>
+            קלוט ספר חדש עם המספר הזה
+          </button>
           <button type="button" className="btn" onClick={onReport} disabled={reported}>
-            {reported ? '✓ דווח' : 'דווח על הברקוד הזה'} <kbd>4</kbd>
+            {reported ? '✓ דווח' : 'דווח על המספר הזה'}
+          </button>
+          <button type="button" className="btn" onClick={onDismiss}>
+            נקה
           </button>
         </div>
       </div>
@@ -538,16 +592,19 @@ function ScanOutcome({
         <span className="hint" style={{ marginInlineEnd: '0.5rem' }}>
           מצב הספר: <strong>{CONDITION_LABELS[copy?.conditionStatus ?? 'normal']}</strong>
         </span>
-        {QUICK_CONDITIONS.map(({ status, key }) => (
+        {QUICK_CONDITIONS.map(({ status }) => (
           <button key={status} type="button" className="btn" onClick={() => onCorrect(status)}>
-            {CONDITION_LABELS[status]} <kbd>{key}</kbd>
+            {CONDITION_LABELS[status]}
           </button>
         ))}
         {/* The librarian is holding the book. If it is not this one, saying so
             must be as cheap as saying it is damaged — otherwise nobody says
             it, and the catalogue stays wrong for ever. */}
         <button type="button" className="btn btn-report" onClick={onReport} disabled={reported}>
-          {reported ? '✓ דווח' : 'זה לא הספר הזה'} <kbd>4</kbd>
+          {reported ? '✓ דווח' : 'זה לא הספר הזה'}
+        </button>
+        <button type="button" className="btn" onClick={onDismiss}>
+          נקה
         </button>
       </div>
     </div>

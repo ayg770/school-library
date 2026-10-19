@@ -507,6 +507,12 @@ export const api = {
   createCopy: (body: Record<string, unknown>) =>
     request<BookCopy>('/api/v1/copies', { method: 'POST', body: JSON.stringify(body) }),
 
+  /** One copy, by the number printed on it. */
+  copyByBarcode: (barcode: string) =>
+    request<BookCopyWithLoan>(`/api/v1/copies/by-barcode/${encodeURIComponent(barcode)}`),
+  studentByBarcode: (barcode: string) =>
+    request<Student>(`/api/v1/students/by-barcode/${encodeURIComponent(barcode)}`),
+
   checkout: (body: { studentPublicId: string; barcode: string }) =>
     request<Loan>('/api/v1/circulation/checkout', { method: 'POST', body: JSON.stringify(body) }),
   checkin: (barcode: string) =>

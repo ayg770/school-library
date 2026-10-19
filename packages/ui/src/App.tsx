@@ -93,6 +93,8 @@ const ALL_SCREENS = NAV.flatMap((group) => group.screens);
 export function App(): JSX.Element {
   const session = useSession();
   const [screen, setScreen] = useState<ScreenId>('home');
+  /** A barcode carried from one screen to the next, used once on arrival. */
+  const [handover, setHandover] = useState<string | null>(null);
 
   // The screen lives in the address so a reload, or the browser's back button,
   // returns where the librarian was rather than to the first tab.
@@ -108,9 +110,17 @@ export function App(): JSX.Element {
     return () => window.removeEventListener('hashchange', sync);
   }, []);
 
-  function go(id: string): void {
+  /**
+   * Moves to a screen, optionally handing it a barcode.
+   *
+   * The barcode is how an unknown number found while counting reaches the
+   * intake form without being read off the screen and typed again — which is
+   * the step at which a book stops being catalogued at all.
+   */
+  function go(id: string, barcode?: string): void {
     window.location.hash = `/${id}`;
     setScreen(id as ScreenId);
+    setHandover(barcode ?? null);
   }
 
   if (session.loading) {
@@ -182,14 +192,16 @@ export function App(): JSX.Element {
         {current === 'checkout' && <CheckoutScreen />}
         {current === 'return' && <ReturnScreen />}
         {current === 'loans' && <LoansScreen />}
-        {current === 'intake' && <IntakeScreen />}
+        {current === 'intake' && <IntakeScreen startingBarcode={handover} />}
         {current === 'books' && <BooksScreen />}
         {current === 'students' && <StudentsScreen />}
         {current === 'setup' && <CatalogSetupScreen />}
         {current === 'import' && <ImportScreen />}
         {current === 'backup' && <BackupScreen />}
         {current === 'staff' && <StaffScreen currentUser={user} />}
-        {current === 'stocktake' && <StocktakeScreen isAdmin={user.role === 'admin'} />}
+        {current === 'stocktake' && (
+          <StocktakeScreen isAdmin={user.role === 'admin'} onGo={go} />
+        )}
         {current === 'sync' && <SyncScreen isAdmin={user.role === 'admin'} />}
         {current === 'support' && <SupportScreen />}
       </main>
