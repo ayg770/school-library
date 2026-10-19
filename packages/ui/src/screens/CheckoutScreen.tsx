@@ -1,269 +1,351 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
+  CONDITION_LABELS,
   api,
   formatDate,
+  type BookCopyWithLoan,
   type Loan,
   type Student,
-  type StudentLibrarySummary,
 } from '../api.js';
 import { Notice } from '../components/Notice.js';
-
-interface ScanEntry {
-  readonly key: number;
-  readonly ok: boolean;
-  readonly text: string;
-  readonly at: string;
-}
-
-type Feedback = { kind: 'ok' | 'error'; headline: string; detail: string; meta?: string } | null;
+import { useScanner } from '../components/useScanner.js';
 
 /**
- * Checkout — PRODUCT_SPEC.md §11.
+ * Lending a book — PRODUCT_SPEC.md §11.
  *
- * The shape of the screen follows the queue at the desk: find the student
- * once, then scan book after book. The barcode field holds focus and takes it
- * back after every scan, so a librarian with a queue never touches the mouse,
- * and there is no confirmation dialog on a normal checkout.
+ * In the order the desk actually works: a child arrives holding a book, so the
+ * book comes first and the child second. It used to be the other way round,
+ * which meant the screen jumped to asking for a pupil the moment a book was
+ * scanned, with no sign of what had just been read.
  *
- * A generic USB scanner in HID keyboard mode types the barcode and sends
- * Enter, which submits the form — the same thing typing by hand does, so both
- * work without the app caring which happened (§10).
+ * The two steps are drawn as two steps, and the one being worked on is lit.
+ * The volunteers are children; a screen that silently becomes a different
+ * screen is one they cannot follow, and they will not ask — they will guess.
+ *
+ * Nothing is written until both halves are known, so a wrong book is put down
+ * by scanning the right one rather than by undoing a loan.
  */
+
+type Stage = 'book' | 'student' | 'done';
+
+interface Done {
+  readonly loan: Loan;
+  readonly student: Student;
+}
+
 export function CheckoutScreen(): JSX.Element {
-  const [studentQuery, setStudentQuery] = useState('');
-  const [matches, setMatches] = useState<Student[]>([]);
-  const [summary, setSummary] = useState<StudentLibrarySummary | null>(null);
+  const [copy, setCopy] = useState<BookCopyWithLoan | null>(null);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
+  /** A pupil chosen for the next book too, waiting for it to be scanned. */
+  const [pending, setPending] = useState<Student | null>(null);
 
-  const [barcode, setBarcode] = useState('');
-  const [feedback, setFeedback] = useState<Feedback>(null);
-  const [log, setLog] = useState<ScanEntry[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [filter, setFilter] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
+  const bookInput = useRef<HTMLInputElement>(null);
   const studentInput = useRef<HTMLInputElement>(null);
-  const barcodeInput = useRef<HTMLInputElement>(null);
 
+  const stage: Stage = done !== null ? 'done' : copy === null ? 'book' : 'student';
+
+  // Loaded once and filtered here: a school has hundreds of pupils, not
+  // thousands, and a list that answers as you type is the difference between
+  // picking a name and giving up on a card nobody has issued.
   useEffect(() => {
-    studentInput.current?.focus();
+    void (async () => {
+      try {
+        setStudents((await api.listStudents({ active: true })).items);
+      } catch {
+        // The list is a convenience; scanning a card still works without it.
+      }
+    })();
   }, []);
 
-  // Once a student is chosen the scan field takes over, and keeps focus.
   useEffect(() => {
-    if (summary !== null) barcodeInput.current?.focus();
-  }, [summary]);
+    if (stage === 'book') bookInput.current?.focus();
+    if (stage === 'student') studentInput.current?.focus();
+  }, [stage]);
 
-  async function selectStudent(student: Student): Promise<void> {
-    setMatches([]);
-    setStudentQuery('');
-    setFeedback(null);
-    setLog([]);
-    try {
-      setSummary(await api.studentSummary(student.publicId));
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'טעינת התלמיד נכשלה');
-    }
-  }
-
-  async function findStudent(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    if (studentQuery.trim() === '') return;
-
+  const findBook = useCallback(async (barcode: string): Promise<void> => {
     setError(null);
     try {
-      const result = await api.listStudents({ query: studentQuery, active: true });
-      if (result.items.length === 1) {
-        // A scanned card, or an unambiguous name: go straight in.
-        await selectStudent(result.items[0]!);
-      } else if (result.items.length === 0) {
-        setError('לא נמצא תלמיד פעיל שמתאים לחיפוש.');
-        setMatches([]);
-      } else {
-        setMatches(result.items);
+      const found = await api.copyByBarcode(barcode);
+      if (found.onLoan) {
+        setError(
+          `הספר הזה כבר מושאל${found.borrowerName === null ? '' : ` ל${found.borrowerName}`}. צריך להחזיר אותו קודם.`,
+        );
+        return;
       }
+      setCopy(found);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'החיפוש נכשל');
+      setError(
+        cause instanceof ApiError
+          ? `${cause.message} (מספר ${barcode})`
+          : `לא נמצא ספר עם המספר ${barcode}.`,
+      );
     }
-  }
+  }, []);
 
-  async function scanBook(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    if (summary === null || barcode === '' || busy) return;
-
-    setBusy(true);
-    const scanned = barcode;
-    setBarcode('');
-
+  const findStudentByCard = useCallback(async (barcode: string): Promise<void> => {
     try {
-      const loan: Loan = await api.checkout({
-        studentPublicId: summary.student.publicId,
-        barcode: scanned,
-      });
-
-      setFeedback({
-        kind: 'ok',
-        headline: 'הושאל',
-        detail: loan.bookTitle,
-        meta: `ברקוד ${loan.barcode} · להחזרה עד ${formatDate(loan.dueAt)}`,
-      });
-      setLog((entries) =>
-        [
-          { key: Date.now(), ok: true, text: `${loan.bookTitle} · ${loan.barcode}`, at: new Date().toLocaleTimeString('he-IL') },
-          ...entries,
-        ].slice(0, 12),
-      );
-      setSummary(await api.studentSummary(summary.student.publicId));
-    } catch (cause) {
-      const message = cause instanceof ApiError ? cause.message : 'ההשאלה נכשלה. נסה שוב.';
-      setFeedback({ kind: 'error', headline: 'לא הושאל', detail: message, meta: `ברקוד ${scanned}` });
-      setLog((entries) =>
-        [
-          { key: Date.now(), ok: false, text: `${scanned} — ${message}`, at: new Date().toLocaleTimeString('he-IL') },
-          ...entries,
-        ].slice(0, 12),
-      );
-    } finally {
-      setBusy(false);
-      // §11: focus returns immediately, ready for the next book.
-      barcodeInput.current?.focus();
+      setStudent(await api.studentByBarcode(barcode));
+      setError(null);
+    } catch {
+      // Not a card. Whatever was typed is a name, so it searches instead.
+      setFilter(barcode);
     }
+  }, []);
+
+  const bookScanner = useScanner({
+    onScan: (barcode) => void findBook(barcode),
+    enabled: stage === 'book',
+  });
+
+  const cardScanner = useScanner({
+    onScan: (barcode) => void findStudentByCard(barcode),
+    enabled: stage === 'student',
+  });
+
+  const shown = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    const list =
+      needle === ''
+        ? students
+        : students.filter((entry) =>
+            `${entry.firstName} ${entry.lastName} ${entry.className ?? ''} ${entry.localBarcode ?? ''}`
+              .toLowerCase()
+              .includes(needle),
+          );
+    return list.slice(0, 60);
+  }, [filter, students]);
+
+  const lend = useCallback(
+    async (chosen: Student, barcode: string): Promise<void> => {
+      setBusy(true);
+      setError(null);
+      try {
+        const loan = await api.checkout({ studentPublicId: chosen.publicId, barcode });
+        setDone({ loan, student: chosen });
+      } catch (cause) {
+        setError(cause instanceof ApiError ? cause.message : 'ההשאלה נכשלה.');
+        setStudent(null);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
+
+  // Choosing a pupil is the last decision, so it is also the moment to act.
+  // There is no confirm step: the loan is undone by returning the book, which
+  // is a thing the desk does all day anyway.
+  //
+  // It re-runs when the request finishes, which is why the guard checks
+  // `done` as well: by then the loan exists, and without that check the same
+  // book would be lent twice.
+  useEffect(() => {
+    if (student !== null && copy !== null && done === null && !busy) {
+      void lend(student, copy.barcode);
+    }
+  }, [student, copy, busy, done, lend]);
+
+  // The same child's next book: the pupil is remembered, so only the book is
+  // asked for again.
+  useEffect(() => {
+    if (pending !== null && copy !== null && student === null) {
+      setStudent(pending);
+      setPending(null);
+    }
+  }, [copy, pending, student]);
+
+  function startOver(keepStudent: boolean): void {
+    const previous = done?.student ?? null;
+    setDone(null);
+    setCopy(null);
+    setStudent(null);
+    setFilter('');
+    setError(null);
+    bookScanner.clear();
+    cardScanner.clear();
+    setPending(keepStudent ? previous : null);
   }
 
   return (
     <>
+      <div className="page-head">
+        <h2>השאלה</h2>
+        <p>קודם הספר, אחר כך הילד.</p>
+      </div>
+
+      <ol className="steps" aria-label="שלבי ההשאלה">
+        <Step index={1} label="הספר" state={stepState(stage, 'book')} />
+        <Step index={2} label="הילד" state={stepState(stage, 'student')} />
+        <Step index={3} label="נרשם" state={stepState(stage, 'done')} />
+      </ol>
+
       {error !== null && <Notice kind="error">{error}</Notice>}
 
-      {summary === null ? (
-        <section className="card">
-          <h2>השאלה — בחירת תלמיד</h2>
-          <p className="hint">סרוק כרטיס תלמיד, או הקלד שם ולחץ Enter.</p>
+      {pending !== null && (
+        <Notice kind="ok">{`הספר הבא יירשם על ${pending.firstName} ${pending.lastName}. סרוק אותו.`}</Notice>
+      )}
 
-          <form onSubmit={(event) => void findStudent(event)} className="scan-field">
+      {stage === 'book' && (
+        <section className="card">
+          <h2>1 · סרוק את הספר</h2>
+          <p className="hint" style={{ marginTop: 0 }}>
+            סרוק עם המכשיר, או הקלד את המספר שעל המדבקה ולחץ Enter.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              bookScanner.submit();
+            }}
+            className="scan-row"
+          >
             <input
+              {...bookScanner.inputProps}
+              ref={bookInput}
+              type="text"
+              inputMode="numeric"
+              placeholder="סרוק או הקלד מספר"
+              aria-label="ברקוד הספר"
+              dir="ltr"
+              autoFocus
+            />
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={bookScanner.value.trim() === ''}
+            >
+              חפש
+            </button>
+          </form>
+        </section>
+      )}
+
+      {copy !== null && done === null && (
+        <section className="card">
+          <div className="card-header">
+            <h2>{copy.bookTitle}</h2>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setCopy(null);
+                setError(null);
+                bookScanner.clear();
+              }}
+            >
+              ספר אחר
+            </button>
+          </div>
+          <p className="result-detail">
+            {copy.bookAuthor ?? 'ללא מחבר'}
+            {copy.categoryName !== null && ` · ${copy.categoryName}`} · מס׳{' '}
+            <span dir="ltr">{copy.barcode}</span> · {CONDITION_LABELS[copy.conditionStatus]}
+          </p>
+        </section>
+      )}
+
+      {stage === 'student' && (
+        <section className="card">
+          <h2>2 · מי לוקח את הספר?</h2>
+          <p className="hint" style={{ marginTop: 0 }}>
+            סרוק כרטיס, הקלד שם, או בחר מהרשימה.
+          </p>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              cardScanner.submit();
+            }}
+            className="scan-row"
+          >
+            <input
+              {...cardScanner.inputProps}
               ref={studentInput}
               type="text"
-              value={studentQuery}
-              onChange={(event) => setStudentQuery(event.target.value)}
-              placeholder="ברקוד כרטיס או שם התלמיד"
-              aria-label="חיפוש תלמיד"
+              placeholder="סרוק כרטיס או הקלד שם"
+              aria-label="תלמיד"
+              onChange={(event) => {
+                cardScanner.inputProps.onChange(event);
+                setFilter(event.target.value);
+              }}
+              autoFocus
             />
           </form>
 
-          {matches.length > 0 && (
+          {students.length === 0 ? (
+            <p className="empty">עדיין אין תלמידים במערכת.</p>
+          ) : shown.length === 0 ? (
+            <p className="empty">אין תלמיד בשם הזה.</p>
+          ) : (
             <ul className="pick-list">
-              {matches.map((student) => (
-                <li key={student.publicId}>
-                  <button type="button" onClick={() => void selectStudent(student)}>
-                    {student.lastName} {student.firstName}
-                    {student.className !== null && <span className="meta"> · {student.className}</span>}
+              {shown.map((entry) => (
+                <li key={entry.publicId}>
+                  <button type="button" onClick={() => setStudent(entry)} disabled={busy}>
+                    <span className="pick-name">
+                      {entry.firstName} {entry.lastName}
+                    </span>
+                    <span className="pick-meta">{entry.className ?? 'ללא כיתה'}</span>
                   </button>
                 </li>
               ))}
             </ul>
           )}
         </section>
-      ) : (
-        <>
-          <div className="student-banner">
-            <div>
-              <div className="who">
-                {summary.student.lastName} {summary.student.firstName}
-              </div>
-              <div className="meta">
-                {summary.student.className ?? 'ללא כיתה'} · {summary.activeLoanCount} ספרים מושאלים
-                {summary.overdueCount > 0 && (
-                  <span className="overdue-text"> · {summary.overdueCount} באיחור</span>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                setSummary(null);
-                setFeedback(null);
-                setLog([]);
-                window.setTimeout(() => studentInput.current?.focus(), 0);
-              }}
-            >
-              תלמיד אחר
-            </button>
+      )}
+
+      {done !== null && (
+        <section className="card">
+          <div className="result result-ok" role="status" aria-live="polite">
+            <p className="result-headline">
+              {done.loan.bookTitle} → {done.student.firstName} {done.student.lastName}
+            </p>
+            <p className="result-detail">
+              {done.student.className ?? 'ללא כיתה'} · להחזרה עד {formatDate(done.loan.dueAt)}
+            </p>
           </div>
 
-          {feedback !== null && (
-            <div className={`result result-${feedback.kind}`} role="status" aria-live="polite">
-              <p className="result-headline">{feedback.headline}</p>
-              <p className="result-detail">{feedback.detail}</p>
-              {feedback.meta !== undefined && <p className="result-meta">{feedback.meta}</p>}
-            </div>
-          )}
-
-          <section className="card">
-            <h2>סריקת ספר</h2>
-            <form onSubmit={(event) => void scanBook(event)} className="scan-field">
-              <input
-                ref={barcodeInput}
-                type="text"
-                value={barcode}
-                onChange={(event) => setBarcode(event.target.value)}
-                placeholder="סרוק את ברקוד הספר"
-                aria-label="ברקוד הספר"
-                dir="ltr"
-                autoComplete="off"
-              />
-            </form>
-            <p className="hint" style={{ marginTop: '0.75rem' }}>
-              הסורק מקליד את הברקוד ושולח Enter. אפשר גם להקליד ידנית.
-            </p>
-          </section>
-
-          {summary.activeLoans.length > 0 && (
-            <section className="card">
-              <h2>מושאל כרגע לתלמיד</h2>
-              <div className="table-wrap">
-                <table className="data">
-                  <thead>
-                    <tr>
-                      <th>ספר</th>
-                      <th>ברקוד</th>
-                      <th>להחזרה עד</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.activeLoans.map((loan) => (
-                      <tr key={loan.publicId}>
-                        <td>{loan.bookTitle}</td>
-                        <td className="value-ltr">{loan.barcode}</td>
-                        <td className={loan.overdue ? 'overdue-text' : ''}>
-                          {formatDate(loan.dueAt)}
-                          {loan.overdue && ` · ${loan.daysOverdue} ימי איחור`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {log.length > 0 && (
-            <section className="card">
-              <h2>נסרק בהשאלה הזו</h2>
-              <ul className="scan-log">
-                {log.map((entry) => (
-                  <li key={entry.key}>
-                    <span className={`mark ${entry.ok ? 'mark-ok' : 'mark-error'}`}>
-                      {entry.ok ? '✓' : '✗'}
-                    </span>
-                    <span>{entry.text}</span>
-                    <span className="time">{entry.at}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-        </>
+          <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
+            <button type="button" className="btn btn-primary" onClick={() => startOver(true)}>
+              עוד ספר לאותו ילד
+            </button>
+            <button type="button" className="btn" onClick={() => startOver(false)}>
+              השאלה חדשה
+            </button>
+          </div>
+        </section>
       )}
     </>
+  );
+}
+
+type StepState = 'done' | 'current' | 'waiting';
+
+function stepState(stage: Stage, step: Stage): StepState {
+  const order: readonly Stage[] = ['book', 'student', 'done'];
+  const at = order.indexOf(stage);
+  const mine = order.indexOf(step);
+  if (mine < at) return 'done';
+  return mine === at ? 'current' : 'waiting';
+}
+
+function Step({
+  index,
+  label,
+  state,
+}: {
+  readonly index: number;
+  readonly label: string;
+  readonly state: StepState;
+}): JSX.Element {
+  return (
+    <li className={`step step-${state}`} aria-current={state === 'current' ? 'step' : undefined}>
+      <span className="step-index">{state === 'done' ? '✓' : index}</span>
+      <span className="step-label">{label}</span>
+    </li>
   );
 }

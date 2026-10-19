@@ -1148,3 +1148,110 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 }
 .btn-report:hover:not(:disabled) { background: var(--warn-soft); }
 .btn-report:disabled { opacity: 0.6; }
+
+/* ---------------------------------------------------------------------------
+   Two steps, drawn as two steps.
+
+   Lending used to replace one screen with another the instant a book was
+   scanned, with nothing to say what had been read or what was now being asked
+   for. The volunteers are children: a screen that silently becomes a different
+   screen is one they cannot follow, and they do not ask — they guess.
+   --------------------------------------------------------------------------- */
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex: 1 1 140px;
+  padding: 0.7rem 1rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.step-index {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  font-weight: 700;
+}
+
+.step-label { font-size: 1.1rem; font-weight: 600; }
+
+.step-current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.step-current .step-index { background: var(--accent); color: var(--on-accent); }
+
+.step-done { border-color: var(--ok); color: var(--ok); }
+.step-done .step-index { background: var(--ok); color: #fff; }
+
+/* A field and the button that submits it, side by side. Typing by hand never
+   submits itself, so there always has to be something to press. */
+.scan-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.scan-row input { flex: 1 1 auto; font-size: 1.3rem; }
+.scan-row .btn { flex: 0 0 auto; }
+
+/* ---------------------------------------------------------------------------
+   Picking a child from a list, at a size a child can hit.
+   --------------------------------------------------------------------------- */
+
+.pick-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  max-height: 22rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.pick-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.pick-list button:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.pick-list button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.pick-name { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+.pick-meta { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Ending a count is rare and irreversible; it is kept away from the buttons
+   pressed every two seconds. */
+.card-quiet {
+  border-style: dashed;
+  background: var(--surface-sunken);
+}
