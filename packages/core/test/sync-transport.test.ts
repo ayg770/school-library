@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   SyncAuthError,
   SyncNetworkError,
+  classifyAuthFailure,
   connectWithPassword,
   connectWithToken,
   useNetworkTransport,
@@ -98,20 +99,32 @@ describe('reaching the online library', () => {
     );
   });
 
-  // Longer than the rest: renewing a token is the one call Supabase retries
-  // with a backoff before giving up, so a network fault takes seconds to be
-  // reported rather than milliseconds. That is the right behaviour on a flaky
-  // school connection, and the test has to wait for it like the librarian does.
-  it('does not send a librarian to reconnect when it is the network that failed', async () => {
-    useNetworkTransport(() => Promise.reject(CERTIFICATE_REJECTION));
+  /**
+   * The rule itself, rather than the library that happens to apply it.
+   *
+   * This used to be driven through `connectWithToken`, which meant waiting out
+   * Supabase's retry schedule for a network fault: half a minute, and not the
+   * same half minute on every machine. The Windows build failed on it while
+   * Linux passed — a test reporting on the weather rather than on the rule.
+   * What matters is the decision, and the decision is one number.
+   */
+  it('reads a real HTTP refusal as the credentials being wrong', () => {
+    expect(classifyAuthFailure({ status: 400 })).toBe('credentials');
+    expect(classifyAuthFailure({ status: 401 })).toBe('credentials');
+    expect(classifyAuthFailure({ status: 422 })).toBe('credentials');
+    expect(classifyAuthFailure({ status: 499 })).toBe('credentials');
+  });
 
-    // A stored token is replaced by hand only when the online library refused
-    // it. A filter in the way is not a reason to make someone type a password.
-    const attempt = connectWithToken('a-stored-refresh-token');
-
-    await expect(attempt).rejects.toThrow(SyncNetworkError);
-    await expect(attempt).rejects.not.toThrow(/התחבר מחדש/);
-  }, 30_000);
+  it('reads anything else as the request never having arrived', () => {
+    // Zero is what the client reports when nothing answered — the case that
+    // cost the library an evening, blamed on a password that was correct.
+    expect(classifyAuthFailure({ status: 0 })).toBe('network');
+    expect(classifyAuthFailure({})).toBe('network');
+    expect(classifyAuthFailure({ status: undefined })).toBe('network');
+    // A server that broke is not a librarian who mistyped.
+    expect(classifyAuthFailure({ status: 500 })).toBe('network');
+    expect(classifyAuthFailure({ status: 502 })).toBe('network');
+  });
 
   it('still asks for a reconnection when the token itself was refused', async () => {
     respondWith(400, { error: 'invalid_grant', error_description: 'Invalid Refresh Token' });

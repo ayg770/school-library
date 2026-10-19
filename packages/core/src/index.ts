@@ -245,6 +245,7 @@ export {
   SUPABASE_URL,
   SyncAuthError,
   SyncNetworkError,
+  classifyAuthFailure,
   useNetworkTransport,
   type FetchLike,
 } from './sync/supabase.js';

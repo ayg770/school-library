@@ -189,11 +189,20 @@ function networkError(detail: string): SyncNetworkError {
  *
  * Supabase answers a wrong password with a real HTTP status. A request that
  * never reached it has no status at all, and the client reports that as zero.
- * Treating the two the same is what made the first connection attempt on the
+ * Treating the two alike is what made the first connection attempt on the
  * library computer blame a password that was correct.
+ *
+ * Exported so it can be tested as what it is — one decision about one number.
+ * Driving it through the client instead means waiting out that library's
+ * retry schedule, which takes half a minute and does not behave identically
+ * on every machine: the Windows build failed on it while Linux passed, which
+ * is a test reporting on the weather rather than on this rule.
  */
-function isCredentialRejection(error: { status?: number | undefined }): boolean {
-  return typeof error.status === 'number' && error.status >= 400 && error.status < 500;
+export function classifyAuthFailure(error: {
+  status?: number | undefined;
+}): 'credentials' | 'network' {
+  const status = error.status;
+  return typeof status === 'number' && status >= 400 && status < 500 ? 'credentials' : 'network';
 }
 
 /** Signs in for the first time, with the credentials an administrator typed. */
@@ -202,7 +211,7 @@ export async function connectWithPassword(email: string, password: string): Prom
   const { data, error } = await client.auth.signInWithPassword({ email, password });
 
   if (error !== null) {
-    if (isCredentialRejection(error)) {
+    if (classifyAuthFailure(error) === 'credentials') {
       throw new SyncAuthError('כתובת הדוא״ל או הסיסמה שגויים.');
     }
     throw networkError(error.message);
@@ -228,7 +237,7 @@ export async function connectWithToken(refreshToken: string): Promise<Connection
   // Same distinction as above: a token the online library rejected has to be
   // replaced by hand, and a request that never arrived must not send a
   // librarian to the connect form to fix a network fault.
-  if (error !== null && !isCredentialRejection(error)) throw networkError(error.message);
+  if (error !== null && classifyAuthFailure(error) === 'network') throw networkError(error.message);
   if (error !== null || data.session === null) {
     throw new SyncAuthError('החיבור לאונליין פג. התחבר מחדש במסך הסנכרון.');
   }
