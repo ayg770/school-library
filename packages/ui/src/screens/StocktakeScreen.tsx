@@ -5,6 +5,7 @@ import {
   formatDate,
   type ConditionStatus,
   type MissingCopy,
+  type CatalogueReport,
   type ScanResult,
   type StocktakeProgress,
 } from '../api.js';
@@ -42,7 +43,7 @@ const QUICK_CONDITIONS: ReadonlyArray<{ status: ConditionStatus; key: string }> 
 
 interface LogEntry {
   readonly key: number;
-  readonly kind: 'ok' | 'repeat' | 'unknown';
+  readonly kind: 'ok' | 'repeat' | 'unknown' | 'report';
   readonly text: string;
   readonly at: string;
 }
@@ -55,12 +56,20 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
   const [error, setError] = useState<string | null>(null);
   const [roundName, setRoundName] = useState('');
   const [busy, setBusy] = useState(false);
+  /** Barcodes reported in this sitting, so the button can say it worked. */
+  const [reported, setReported] = useState<ReadonlySet<string>>(new Set());
+  const [openReports, setOpenReports] = useState(0);
+  const [reportList, setReportList] = useState<CatalogueReport[]>([]);
+  const [showReports, setShowReports] = useState(false);
 
   const input = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async (): Promise<void> => {
     try {
-      setProgress(await api.stocktake());
+      const [next, reports] = await Promise.all([api.stocktake(), api.catalogueReports(false)]);
+      setProgress(next);
+      setOpenReports(reports.open);
+      setReportList(reports.items);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'טעינת מצב הבדיקה נכשלה');
     }
@@ -135,20 +144,55 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
     [last],
   );
 
+  /**
+   * "This is not that book."
+   *
+   * The sticker and the catalogue disagree. Which of them is wrong cannot be
+   * told from here, and a librarian holding a book with children waiting is
+   * the worst person to ask — so this files the disagreement in one press and
+   * lets the count carry on. Somebody with both records and no queue settles
+   * it later.
+   */
+  const reportWrongBook = useCallback(async (): Promise<void> => {
+    const barcode = last?.barcode;
+    if (barcode === undefined) return;
+
+    try {
+      await api.reportMismatch(barcode);
+      setReported((seen) => new Set(seen).add(barcode));
+      const reports = await api.catalogueReports(false);
+      setOpenReports(reports.open);
+      setReportList(reports.items);
+      remember({ kind: 'report', text: `${barcode} — דווח: לא הספר הנכון` });
+    } catch (cause) {
+      setError(cause instanceof ApiError ? cause.message : 'הדיווח נכשל.');
+    } finally {
+      input.current?.focus();
+    }
+  }, [last]);
+
   // The hands are on the scanner, not the mouse. A digit marks the book just
   // counted; the field keeps focus throughout so the next scan needs nothing.
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       if (last?.copy === undefined || last.copy === null) return;
+      if (scanner.value !== '') return;
+
+      if (event.key === '4') {
+        event.preventDefault();
+        void reportWrongBook();
+        return;
+      }
+
       const match = QUICK_CONDITIONS.find((entry) => entry.key === event.key);
-      if (match === undefined || scanner.value !== '') return;
+      if (match === undefined) return;
       event.preventDefault();
       void correct(match.status);
     }
 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [correct, last, scanner.value]);
+  }, [correct, last, reportWrongBook, scanner.value]);
 
   async function startRound(event: React.FormEvent): Promise<void> {
     event.preventDefault();
@@ -169,6 +213,15 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
   }
 
   async function finishRound(): Promise<void> {
+    // Ending a count is not undoable, and the button sits beside one that is
+    // pressed constantly. Asking costs a second; a count ended by accident
+    // costs the morning that produced it.
+    const sure = window.confirm(
+      `לסיים את הסבב "${progress?.round?.name ?? ''}"?\n\nנספרו ${progress?.seen ?? 0} מתוך ${progress?.expected ?? 0}. ` +
+        'אחרי הסיום אי אפשר להמשיך לספור בסבב הזה.',
+    );
+    if (!sure) return;
+
     setBusy(true);
     try {
       await api.finishStocktake();
@@ -212,6 +265,23 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
         <h2>בדיקת מלאי</h2>
         <p>סרוק ספר אחר ספר. ספר תקין נספר מעצמו — בלי לגעת במקלדת.</p>
       </div>
+
+      {/* The count survives closing the program, the screen and the day. It
+          said so nowhere, so the librarian who came back assumed it was lost
+          and did not dare carry on. */}
+      {open !== null && (
+        <div className="round-banner" role="status">
+          <div>
+            <span className="round-banner-label">סבב פתוח</span>
+            <strong>{open.name}</strong>
+            <span className="round-banner-since">מאז {formatDate(open.startedAt)}</span>
+          </div>
+          <div className="round-banner-progress">
+            נספרו <strong>{progress.seen.toLocaleString('he-IL')}</strong> מתוך{' '}
+            {progress.expected.toLocaleString('he-IL')} · הבדיקה נשמרת, אפשר להפסיק ולהמשיך מחר
+          </div>
+        </div>
+      )}
 
       {error !== null && <Notice kind="error">{error}</Notice>}
 
@@ -269,6 +339,12 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
               <div className="note">פגומים או לתיקון</div>
             </div>
 
+            <div className={`tile ${openReports > 0 ? 'tile-warn' : ''}`}>
+              <div className="label">אי-התאמות</div>
+              <div className="value">{openReports.toLocaleString('he-IL')}</div>
+              <div className="note">{openReports === 0 ? 'אין דיווחים' : 'ממתינות לבדיקה'}</div>
+            </div>
+
             <div className="tile">
               <div className="label">הסבב</div>
               <div className="value" style={{ fontSize: '1.1rem' }}>{open.name}</div>
@@ -290,13 +366,25 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
               />
             </form>
 
-            {last !== null && <ScanOutcome result={last} onCorrect={(s) => void correct(s)} />}
+                    {last !== null && (
+              <ScanOutcome
+                result={last}
+                reported={reported.has(last.barcode)}
+                onCorrect={(status) => void correct(status)}
+                onReport={() => void reportWrongBook()}
+              />
+            )}
           </section>
 
           <div className="form-actions" style={{ justifyContent: 'flex-start' }}>
             <button type="button" className="btn" onClick={() => void showMissing()} disabled={busy}>
               הצג מה עוד לא נמצא
             </button>
+            {openReports > 0 && (
+              <button type="button" className="btn" onClick={() => setShowReports((open) => !open)}>
+                {showReports ? 'הסתר אי-התאמות' : `הצג אי-התאמות (${openReports})`}
+              </button>
+            )}
             {isAdmin && (
               <button type="button" className="btn" onClick={() => void finishRound()} disabled={busy}>
                 סיים את הסבב
@@ -320,6 +408,42 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {/* The pile the desk has been filing into. Nothing here is urgent — it
+          is read by somebody with both records and no queue of children. */}
+      {showReports && reportList.length > 0 && (
+        <section className="card">
+          <div className="card-header">
+            <h2>אי-התאמות שדווחו</h2>
+          </div>
+          <p className="hint" style={{ marginTop: 0 }}>
+            ספרים שבהם המדבקה והקטלוג לא מסכימים. הספרן דיווח תוך כדי עבודה; מישהו יבדוק אותם
+            בנחת מול הספר עצמו.
+          </p>
+          <div className="table-wrap">
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>מס׳ סידורי</th>
+                  <th>מה הקטלוג אמר</th>
+                  <th>דווח על ידי</th>
+                  <th>מתי</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportList.map((report) => (
+                  <tr key={report.publicId}>
+                    <td className="value-ltr">{report.barcode}</td>
+                    <td>{report.claimedTitle ?? <span className="hint">לא היה בקטלוג</span>}</td>
+                    <td>{report.reportedBy ?? '—'}</td>
+                    <td>{formatDate(report.reportedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
@@ -369,10 +493,14 @@ export function StocktakeScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX
 /** What the librarian sees the instant a barcode lands. */
 function ScanOutcome({
   result,
+  reported,
   onCorrect,
+  onReport,
 }: {
   readonly result: ScanResult;
+  readonly reported: boolean;
   readonly onCorrect: (status: ConditionStatus) => void;
+  readonly onReport: () => void;
 }): JSX.Element {
   if (!result.found) {
     return (
@@ -382,6 +510,11 @@ function ScanOutcome({
         <p className="result-meta">
           אם זה ספר חדש — הוסף אותו במסך <strong>קליטה</strong> עם הברקוד הזה, וסרוק שוב.
         </p>
+        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.6rem' }}>
+          <button type="button" className="btn" onClick={onReport} disabled={reported}>
+            {reported ? '✓ דווח' : 'דווח על הברקוד הזה'} <kbd>4</kbd>
+          </button>
+        </div>
       </div>
     );
   }
@@ -392,7 +525,9 @@ function ScanOutcome({
     <div className={`result result-${result.repeat ? 'warn' : 'ok'}`} role="status" aria-live="polite">
       <p className="result-headline">{copy?.bookTitle}</p>
       <p className="result-detail">
-        {copy?.bookAuthor ?? 'ללא מחבר'} · ברקוד {result.barcode}
+        {copy?.bookAuthor ?? 'ללא מחבר'}
+        {copy?.categoryName != null && ` · ${copy.categoryName}`} · מס׳{' '}
+        <span dir="ltr">{result.barcode}</span>
         {result.repeat && ' · נספר כבר בסבב הזה'}
       </p>
       {result.onLoanTo !== null && (
@@ -408,6 +543,12 @@ function ScanOutcome({
             {CONDITION_LABELS[status]} <kbd>{key}</kbd>
           </button>
         ))}
+        {/* The librarian is holding the book. If it is not this one, saying so
+            must be as cheap as saying it is damaged — otherwise nobody says
+            it, and the catalogue stays wrong for ever. */}
+        <button type="button" className="btn btn-report" onClick={onReport} disabled={reported}>
+          {reported ? '✓ דווח' : 'זה לא הספר הזה'} <kbd>4</kbd>
+        </button>
       </div>
     </div>
   );

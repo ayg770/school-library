@@ -125,6 +125,18 @@ export {
   type StocktakeRound,
 } from './domain/stocktake.js';
 
+export {
+  REPORT_KINDS,
+  getReport,
+  listReports,
+  openReportCount,
+  reportMismatch,
+  resolveReport,
+  type CatalogueReport,
+  type ReportInput,
+  type ReportKind,
+} from './domain/reports.js';
+
 // --- Circulation (Phase 2) ---
 export {
   listAudit,

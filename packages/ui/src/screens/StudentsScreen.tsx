@@ -266,12 +266,24 @@ export function StudentsScreen(): JSX.Element {
                   <th>כיתה</th>
                   <th>ברקוד כרטיס</th>
                   <th>סטטוס</th>
-                  <th className="row-actions" />
                 </tr>
               </thead>
               <tbody>
+                {/* The row is the target here too — one rule for every list. */}
                 {students.map((student) => (
-                  <tr key={student.publicId} className={student.active ? '' : 'is-inactive'}>
+                  <tr
+                    key={student.publicId}
+                    className={`row-link ${student.active ? '' : 'is-inactive'}`}
+                    onClick={() => startEdit(student)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' && event.key !== ' ') return;
+                      event.preventDefault();
+                      startEdit(student);
+                    }}
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`פתח את ${student.firstName} ${student.lastName}`}
+                  >
                     <td>
                       {student.lastName} {student.firstName}
                     </td>
@@ -283,11 +295,6 @@ export function StudentsScreen(): JSX.Element {
                       ) : (
                         <span className="status status-neutral">לא פעיל</span>
                       )}
-                    </td>
-                    <td className="row-actions">
-                      <button type="button" className="btn-link" onClick={() => startEdit(student)}>
-                        עריכה
-                      </button>
                     </td>
                   </tr>
                 ))}

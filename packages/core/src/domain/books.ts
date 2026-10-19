@@ -29,6 +29,15 @@ export interface Book {
   readonly active: boolean;
   /** How many physical items exist for this title (§6). */
   readonly copyCount: number;
+  /**
+   * The barcodes on the shelf, in order, newest list first.
+   *
+   * A title is an abstraction; the number printed on the sticker is what a
+   * librarian holds and what a child reads out. A list that shows neither
+   * cannot be checked against the shelf, which is what every list in this
+   * application is ultimately for.
+   */
+  readonly barcodes: readonly string[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -83,6 +92,7 @@ interface BookRow {
   notes: string | null;
   active: number;
   copy_count: number;
+  barcodes: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -93,6 +103,9 @@ const SELECT = `
          cat.public_id AS category_public_id, cat.name AS category_name,
          b.default_call_number, b.notes, b.active,
          (SELECT COUNT(*) FROM book_copies bc WHERE bc.book_id = b.id) AS copy_count,
+         (SELECT group_concat(bc.barcode, ' | ')
+            FROM (SELECT barcode FROM book_copies
+                   WHERE book_id = b.id ORDER BY barcode) bc) AS barcodes,
          b.created_at, b.updated_at
     FROM books b
     LEFT JOIN categories cat ON cat.id = b.category_id`;
@@ -114,6 +127,7 @@ function map(row: BookRow): Book {
     notes: row.notes,
     active: fromDbBool(row.active),
     copyCount: row.copy_count,
+    barcodes: row.barcodes === null ? [] : row.barcodes.split(' | '),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

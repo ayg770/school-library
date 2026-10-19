@@ -1036,3 +1036,115 @@ table.data td.sample {
 .muted {
   color: var(--text-muted);
 }
+
+/* ---------------------------------------------------------------------------
+   The two jobs, as targets rather than menu entries.
+
+   The volunteers are children. They will not read a sidebar and work out which
+   entry means "a child wants to borrow this". These are the size of a hand and
+   two clearly different colours, so the choice is made from a step away and
+   without reading — which is also what stops a return being recorded as a
+   loan.
+   --------------------------------------------------------------------------- */
+
+.big-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--gap-4, 1rem);
+  margin-bottom: 1.25rem;
+}
+
+.big-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-height: 160px;
+  padding: 1.5rem 1rem;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font: inherit;
+  color: var(--on-accent);
+  box-shadow: var(--shadow);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.big-action:hover { transform: translateY(-2px); box-shadow: var(--shadow), 0 8px 20px rgb(16 22 28 / 12%); }
+.big-action:active { transform: translateY(0); }
+.big-action:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+
+.big-action-lend { background: #1c4f8f; }
+.big-action-lend:hover { background: #17427a; }
+.big-action-return { background: #12703f; }
+.big-action-return:hover { background: #0e5c34; }
+
+.big-action-icon { font-size: 2.6rem; line-height: 1; }
+.big-action-title { font-size: 1.9rem; font-weight: 700; }
+.big-action-subtitle { font-size: 1rem; opacity: 0.9; }
+
+/* ---------------------------------------------------------------------------
+   A whole row is the target, not a link at the end of it.
+   --------------------------------------------------------------------------- */
+
+tr.row-link { cursor: pointer; }
+tr.row-link:hover > td { background: var(--accent-soft); }
+tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Leaving a screen, said once and in the same place every time. */
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.btn-back:hover { background: var(--surface-hover); color: var(--text); }
+
+/* ---------------------------------------------------------------------------
+   The open count, stated wherever the counting happens.
+
+   A count survives the program being closed. Nothing said so, so a librarian
+   who came back the next day assumed the morning's work was lost.
+   --------------------------------------------------------------------------- */
+
+.round-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--accent);
+  border-inline-start: 5px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.round-banner strong { font-size: 1.15rem; }
+.round-banner-label {
+  margin-inline-end: 0.5rem;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.8;
+}
+.round-banner-since { margin-inline-start: 0.6rem; font-size: 0.9rem; opacity: 0.8; }
+.round-banner-progress { font-size: 0.95rem; }
+
+/* Saying "this is not that book" must cost no more than saying it is damaged. */
+.btn-report {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.btn-report:hover:not(:disabled) { background: var(--warn-soft); }
+.btn-report:disabled { opacity: 0.6; }

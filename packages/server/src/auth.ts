@@ -50,6 +50,10 @@ function isAdminOnly(method: string, path: string): boolean {
   // through to the librarian rule, which is the point: the volunteers do the
   // counting, and only an administrator declares a count begun or done.
   if (path.startsWith('/api/v1/stocktake/rounds')) return true;
+  // Filing a disagreement is a librarian saying what they are holding, and
+  // belongs to whoever is counting. Declaring it settled is a decision about
+  // what the catalogue says, which is the administrator's.
+  if (path.startsWith('/api/v1/catalogue-reports/') && path.endsWith('/resolve')) return true;
   return false;
 }
 

@@ -20,6 +20,8 @@ export interface BookCopy {
   readonly bookPublicId: string;
   readonly bookTitle: string;
   readonly bookAuthor: string | null;
+  /** The title's category, carried on the copy so a scan identifies a book. */
+  readonly categoryName: string | null;
   /** Stored exactly as supplied — never trimmed or reformatted (§7, §34). */
   readonly barcode: string;
   readonly legacyId: string | null;
@@ -68,6 +70,7 @@ interface CopyRow {
   book_public_id: string;
   book_title: string;
   book_author: string | null;
+  category_name: string | null;
   barcode: string;
   legacy_id: string | null;
   accession_number: string | null;
@@ -85,12 +88,14 @@ interface CopyRow {
 
 const SELECT = `
   SELECT bc.public_id, b.public_id AS book_public_id, b.title AS book_title, b.author_text AS book_author,
+         cat.name AS category_name,
          bc.barcode, bc.legacy_id, bc.accession_number,
          sl.public_id AS shelf_public_id, sl.name AS shelf_name,
          bc.condition_status, bc.purchase_date, bc.price_cents, bc.condition_note,
          bc.verified_at, bc.active, bc.created_at, bc.updated_at
     FROM book_copies bc
     JOIN books b ON b.id = bc.book_id
+    LEFT JOIN categories cat ON cat.id = b.category_id
     LEFT JOIN shelf_locations sl ON sl.id = bc.shelf_location_id`;
 
 function map(row: CopyRow): BookCopy {
@@ -99,6 +104,7 @@ function map(row: CopyRow): BookCopy {
     bookPublicId: row.book_public_id,
     bookTitle: row.book_title,
     bookAuthor: row.book_author,
+    categoryName: row.category_name,
     barcode: row.barcode,
     legacyId: row.legacy_id,
     accessionNumber: row.accession_number,
