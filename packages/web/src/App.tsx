@@ -4,11 +4,13 @@ import { SignInScreen } from './screens/SignInScreen.js';
 import { HomeScreen } from './screens/HomeScreen.js';
 import { CatalogueScreen } from './screens/CatalogueScreen.js';
 import { TaxonomyScreen } from './screens/TaxonomyScreen.js';
+import { ScanScreen } from './screens/ScanScreen.js';
 
-type Screen = 'home' | 'catalogue' | 'categories' | 'shelves';
+type Screen = 'home' | 'scan' | 'catalogue' | 'categories' | 'shelves';
 
 const NAV: { id: Screen; label: string }[] = [
   { id: 'home', label: 'בית' },
+  { id: 'scan', label: '📷 סריקה' },
   { id: 'catalogue', label: 'קטלוג' },
   { id: 'categories', label: 'קטגוריות' },
   { id: 'shelves', label: 'מיקומי מדף' },
@@ -126,6 +128,7 @@ export function App(): JSX.Element {
 
       <main className="content">
         {screen === 'home' && <HomeScreen displayName={staff.display_name} />}
+        {screen === 'scan' && <ScanScreen />}
         {screen === 'catalogue' && <CatalogueScreen />}
         {screen === 'categories' && <TaxonomyScreen kind="categories" />}
         {screen === 'shelves' && <TaxonomyScreen kind="shelf_locations" />}

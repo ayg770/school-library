@@ -42,6 +42,15 @@ const CONDITION_LABELS: Record<ConditionStatus, string> = {
  * meant the conditions my own keyboard shortcuts set by accident could not be
  * undone from the screen that set them.
  */
+/** One restrained mark per state. Enough to find the button without reading. */
+const CONDITION_EMOJI: Record<ConditionStatus, string> = {
+  normal: '✓',
+  damaged: '✗',
+  repair: '🔧',
+  lost: '—',
+  withdrawn: '—',
+};
+
 const QUICK_CONDITIONS: ReadonlyArray<{ status: ConditionStatus }> = [
   { status: 'normal' },
   { status: 'damaged' },
@@ -552,11 +561,13 @@ function ScanOutcome({
 }): JSX.Element {
   if (!result.found) {
     return (
-      <div className="result result-error" role="status" aria-live="polite">
-        <p className="result-headline">הספר הזה לא נמצא בקטלוג</p>
-        <p className="result-detail">ברקוד {result.barcode}</p>
-        <p className="result-meta">הספר הזה אינו בקטלוג. אפשר לקלוט אותו עכשיו.</p>
-        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.6rem' }}>
+      <div className="index-card" role="status" aria-live="polite">
+        <div>
+          <p className="card-title">
+            <span dir="ltr" className="card-number">{result.barcode}</span>
+          </p>
+          <p className="card-line">הספר הזה אינו בקטלוג</p>
+          <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.8rem' }}>
           {/* The book is in their hand and the number is on the screen.
               Making them retype it elsewhere is how books stay uncatalogued. */}
           <button type="button" className="btn btn-primary" onClick={onCatalogue}>
@@ -565,10 +576,12 @@ function ScanOutcome({
           <button type="button" className="btn" onClick={onReport} disabled={reported}>
             {reported ? '✓ דווח' : 'דווח על המספר הזה'}
           </button>
-          <button type="button" className="btn" onClick={onDismiss}>
-            נקה
-          </button>
+            <button type="button" className="btn" onClick={onDismiss}>
+              נקה
+            </button>
+          </div>
         </div>
+        <div className="stamp stamp-none">לא בקטלוג ❓</div>
       </div>
     );
   }
@@ -576,36 +589,41 @@ function ScanOutcome({
   const copy = result.copy;
 
   return (
-    <div className={`result result-${result.repeat ? 'warn' : 'ok'}`} role="status" aria-live="polite">
-      <p className="result-headline">{copy?.bookTitle}</p>
-      <p className="result-detail">
-        {copy?.bookAuthor ?? 'ללא מחבר'}
-        {copy?.categoryName != null && ` · ${copy.categoryName}`} · מס׳{' '}
-        <span dir="ltr">{result.barcode}</span>
-        {result.repeat && ' · נספר כבר בסבב הזה'}
-      </p>
-      {result.onLoanTo !== null && (
-        <p className="result-meta">הספר מושאל כרגע ל{result.onLoanTo}.</p>
-      )}
+    <div className="index-card" role="status" aria-live="polite">
+      <div>
+        <p className="card-title">{copy?.bookTitle}</p>
+        <p className="card-line">{copy?.bookAuthor ?? 'ללא מחבר'}</p>
+        <p className="card-line">
+          {copy?.categoryName ?? 'ללא קטגוריה'} · מס׳{' '}
+          <span dir="ltr" className="card-number">{result.barcode}</span>
+        </p>
+        {result.onLoanTo !== null && (
+          <p className="card-line">📕 מושאל כרגע ל{result.onLoanTo}</p>
+        )}
 
-      <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.6rem' }}>
-        <span className="hint" style={{ marginInlineEnd: '0.5rem' }}>
-          מצב הספר: <strong>{CONDITION_LABELS[copy?.conditionStatus ?? 'normal']}</strong>
-        </span>
-        {QUICK_CONDITIONS.map(({ status }) => (
-          <button key={status} type="button" className="btn" onClick={() => onCorrect(status)}>
-            {CONDITION_LABELS[status]}
+        <div className="form-actions" style={{ justifyContent: 'flex-start', marginTop: '0.9rem' }}>
+          <span className="hint" style={{ marginInlineEnd: '0.4rem' }}>
+            מצב: <strong>{CONDITION_LABELS[copy?.conditionStatus ?? 'normal']}</strong>
+          </span>
+          {QUICK_CONDITIONS.map(({ status }) => (
+            <button key={status} type="button" className="btn" onClick={() => onCorrect(status)}>
+              {CONDITION_EMOJI[status]} {CONDITION_LABELS[status]}
+            </button>
+          ))}
+          {/* The librarian is holding the book. If it is not this one, saying
+              so must cost no more than saying it is damaged — otherwise nobody
+              says it, and the catalogue stays wrong for ever. */}
+          <button type="button" className="btn btn-report" onClick={onReport} disabled={reported}>
+            {reported ? '✓ דווח' : '❓ זה לא הספר הזה'}
           </button>
-        ))}
-        {/* The librarian is holding the book. If it is not this one, saying so
-            must be as cheap as saying it is damaged — otherwise nobody says
-            it, and the catalogue stays wrong for ever. */}
-        <button type="button" className="btn btn-report" onClick={onReport} disabled={reported}>
-          {reported ? '✓ דווח' : 'זה לא הספר הזה'}
-        </button>
-        <button type="button" className="btn" onClick={onDismiss}>
-          נקה
-        </button>
+          <button type="button" className="btn" onClick={onDismiss}>
+            נקה
+          </button>
+        </div>
+      </div>
+
+      <div className={`stamp ${result.repeat ? 'stamp-repeat' : 'stamp-ok'}`}>
+        {result.repeat ? 'כבר נספר 🔁' : 'נספר ✓'}
       </div>
     </div>
   );

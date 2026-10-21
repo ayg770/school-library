@@ -19,38 +19,47 @@
 :root {
   color-scheme: light;
 
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-sunken: #f0f2f5;
-  --surface-hover: #f5f6f8;
-  --border: #dfe3e8;
-  --border-strong: #c3c9d2;
+  /*
+   * Paper, because this is a library.
+   *
+   * The screens looked like every other piece of software, which is a way of
+   * looking like nothing. A card catalogue is a thing this school's librarians
+   * already understand — cream stock, ruled lines, a punched hole, a stamp
+   * that says what happened. The colours below are that drawer.
+   */
+  --bg: #e8dcc4;
+  --surface: #fffdf6;
+  --surface-sunken: #f3ead6;
+  --surface-hover: #faf4e6;
+  --border: #cbbe9c;
+  --border-strong: #a2906a;
 
-  --text: #12161c;
-  --text-secondary: #464f5b;
-  --text-muted: #6b7684;
+  --text: #2c2418;
+  --text-secondary: #4a3f26;
+  --text-muted: #6f6243;
 
   /* One accent hue, for the current item and the primary action only. */
-  --accent: #1c4f8f;
-  --accent-hover: #17427a;
-  --accent-soft: #e8f0fa;
-  --accent-ink: #14406f;
+  --accent: #2f6b3a;
+  --accent-hover: #24522c;
+  --accent-soft: #e7f0e4;
+  --accent-ink: #24522c;
   /* Text that sits on top of the accent, not beside it. */
   --on-accent: #ffffff;
 
   /* Status. Always paired with a word — colour never carries meaning alone. */
-  --ok: #12703f;
-  --ok-soft: #e4f4ea;
-  --warn: #7d5600;
-  --warn-soft: #fcf1d8;
+  --ok: #2f6b3a;
+  --ok-soft: #e7f0e4;
+  --warn: #9a6b12;
+  --warn-soft: #f7ecd2;
   --error: #9b2620;
-  --error-soft: #fbe9e8;
+  --error-soft: #f8e6e2;
 
-  --radius: 10px;
-  --radius-sm: 7px;
+  /* Paper has corners. Barely rounded, not pill-shaped. */
+  --radius: 4px;
+  --radius-sm: 3px;
 
-  --shadow-sm: 0 1px 2px rgb(16 22 28 / 6%);
-  --shadow: 0 1px 3px rgb(16 22 28 / 8%), 0 4px 12px rgb(16 22 28 / 5%);
+  --shadow-sm: 0 1px 0 #d8cbab;
+  --shadow: 0 1px 0 #d8cbab, 0 8px 22px rgb(70 56 24 / 14%);
 
   --gap-1: 0.25rem;
   --gap-2: 0.5rem;
@@ -106,6 +115,11 @@
 body {
   margin: 0;
   background: var(--bg);
+  /* Ruled lines, faint, over a warm wash — after the shorthand, or it wins. */
+  background-image:
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 2.5%) 0 1px, transparent 1px 28px),
+    radial-gradient(circle at 20% 10%, #f3ead6 0%, #e4d6ba 70%);
+  background-attachment: fixed;
   color: var(--text);
   font-family: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
   font-size: 15px;
@@ -1254,4 +1268,98 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 .card-quiet {
   border-style: dashed;
   background: var(--surface-sunken);
+}
+
+/* ---------------------------------------------------------------------------
+   The drawer: a scanned book is an index card, and its state is a stamp.
+
+   A librarian reads the stamp before reading a word, which is the point — at
+   a book every two seconds there is no time to read a sentence. The stamp sits
+   in its own column so a long title can never run underneath it.
+   --------------------------------------------------------------------------- */
+
+.index-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+  position: relative;
+  margin-top: 1rem;
+  padding: 1.4rem 2rem 1.4rem 3.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  animation: card-in 180ms cubic-bezier(.2, .8, .3, 1) both;
+}
+
+/* The punched hole, as in the drawer this is pretending to be. */
+.index-card::before {
+  content: '';
+  position: absolute;
+  inset-inline-end: 1.35rem;
+  top: 50%;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 28%);
+  transform: translateY(-50%);
+}
+
+.index-card .card-title { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
+.index-card .card-line { margin-top: 0.3rem; color: var(--text-secondary); }
+.index-card .card-number {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.08em;
+}
+
+.stamp {
+  justify-self: end;
+  white-space: nowrap;
+  padding: 0.4rem 0.9rem;
+  border: 4px solid currentcolor;
+  border-radius: 7px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  opacity: 0.9;
+  transform: rotate(-7deg);
+  animation: stamp-down 220ms cubic-bezier(.2, .9, .3, 1.4) both 60ms;
+}
+
+.stamp-ok     { color: var(--ok); }
+.stamp-repeat { color: var(--warn); }
+.stamp-none   { color: var(--error); }
+
+/* ---------------------------------------------------------------------------
+   Motion: short enough that it never delays the next book.
+
+   150–250ms is long enough for an eye to register that something happened and
+   short enough to be invisible to someone scanning every two seconds. Anyone
+   who has asked their system for less movement gets none of it.
+   --------------------------------------------------------------------------- */
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes stamp-down {
+  from { opacity: 0; transform: rotate(-7deg) scale(1.5); }
+  to   { opacity: .9; transform: rotate(-7deg) scale(1); }
+}
+
+@keyframes tick-up {
+  from { transform: translateY(5px); opacity: .4; }
+  60%  { transform: translateY(-2px); }
+  to   { transform: none; opacity: 1; }
+}
+
+/* The counter lifts a little when it changes, so a scan is visibly counted. */
+.tile .value { animation: tick-up 200ms ease-out both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .index-card, .stamp, .tile .value { animation: none; }
 }

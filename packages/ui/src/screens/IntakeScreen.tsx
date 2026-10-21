@@ -26,6 +26,7 @@ type Feedback = { kind: 'ok' | 'error'; headline: string; detail: string; meta?:
  */
 export function IntakeScreen({
   startingBarcode = null,
+  onDone,
 }: {
   /**
    * A number that arrived from the stocktake screen.
@@ -35,6 +36,14 @@ export function IntakeScreen({
    * quietly stops being catalogued.
    */
   readonly startingBarcode?: string | null;
+  /**
+   * Where to go once the book is in.
+   *
+   * Set when the barcode arrived from counting: the librarian was in the
+   * middle of a shelf and wants to be back there, not left on a form. A
+   * volunteer who has to find their own way back is a volunteer who stops.
+   */
+  readonly onDone?: (barcode: string) => void;
 } = {}): JSX.Element {
   const [barcode, setBarcode] = useState(startingBarcode ?? '');
   const [title, setTitle] = useState('');
@@ -101,6 +110,10 @@ export function IntakeScreen({
         setCategoryPublicId('');
         setShelfPublicId('');
       }
+
+      // Straight back to the shelf it came from, carrying the barcode so the
+      // book is counted on arrival rather than needing a second scan.
+      if (onDone !== undefined) onDone(result.copy.barcode);
     } catch (cause) {
       const message = cause instanceof ApiError ? cause.message : 'ההוספה נכשלה. נסה שוב.';
       setFieldError(message);
