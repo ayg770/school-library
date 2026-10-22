@@ -9,12 +9,21 @@ import { ScanScreen } from './screens/ScanScreen.js';
 type Screen = 'home' | 'scan' | 'catalogue' | 'categories' | 'shelves';
 
 const NAV: { id: Screen; label: string }[] = [
-  { id: 'home', label: 'בית' },
+  { id: 'home', label: '🏠 בית' },
   { id: 'scan', label: '📷 סריקה' },
-  { id: 'catalogue', label: 'קטלוג' },
-  { id: 'categories', label: 'קטגוריות' },
-  { id: 'shelves', label: 'מיקומי מדף' },
+  { id: 'catalogue', label: '📚 קטלוג' },
+  { id: 'categories', label: '🗂️ קטגוריות' },
+  { id: 'shelves', label: '📍 מיקומי מדף' },
 ];
+
+/** The colour each screen is worked in; the same scheme as the desktop. */
+const AREA: Record<Screen, string> = {
+  home: 'home',
+  scan: 'scan',
+  catalogue: 'intake',
+  categories: 'intake',
+  shelves: 'intake',
+};
 
 /**
  * The office side of the library.
@@ -91,7 +100,7 @@ export function App(): JSX.Element {
   }
 
   return (
-    <div className="app">
+    <div className="app" data-area={AREA[screen] ?? 'home'}>
       <aside className="sidebar">
         <div className="sidebar-brand">
           <h1>ספריית בית הספר</h1>
