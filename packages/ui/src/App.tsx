@@ -54,33 +54,58 @@ const NAV: readonly NavGroup[] = [
   {
     title: 'יומיומי',
     screens: [
-      { id: 'home', label: 'בית', role: 'read_only' },
-      { id: 'checkout', label: 'השאלה', role: 'librarian' },
-      { id: 'return', label: 'החזרה', role: 'librarian' },
-      { id: 'loans', label: 'השאלות', role: 'read_only' },
+      { id: 'home', label: '🏠 בית', role: 'read_only' },
+      { id: 'checkout', label: '🔄 השאלה', role: 'librarian' },
+      { id: 'return', label: '↩️ החזרה', role: 'librarian' },
+      { id: 'loans', label: '📋 השאלות', role: 'read_only' },
     ],
   },
   {
     title: 'קטלוג',
     screens: [
-      { id: 'intake', label: 'קליטת ספרים', role: 'librarian' },
-      { id: 'stocktake', label: 'בדיקת מלאי', role: 'librarian' },
-      { id: 'books', label: 'ספרים', role: 'read_only' },
-      { id: 'students', label: 'תלמידים', role: 'read_only' },
-      { id: 'setup', label: 'כיתות וקטגוריות', role: 'librarian' },
+      { id: 'intake', label: '📥 קליטת ספרים', role: 'librarian' },
+      { id: 'stocktake', label: '📊 בדיקת מלאי', role: 'librarian' },
+      { id: 'books', label: '📚 ספרים', role: 'read_only' },
+      { id: 'students', label: '🎒 תלמידים', role: 'read_only' },
+      { id: 'setup', label: '🗂️ כיתות וקטגוריות', role: 'librarian' },
     ],
   },
   {
     title: 'ניהול',
     screens: [
-      { id: 'import', label: 'ייבוא מקובץ', role: 'librarian' },
-      { id: 'sync', label: 'סנכרון', role: 'librarian' },
-      { id: 'backup', label: 'גיבוי', role: 'admin' },
-      { id: 'staff', label: 'משתמשים', role: 'admin' },
-      { id: 'support', label: 'הגדרות ותמיכה', role: 'read_only' },
+      { id: 'import', label: '📄 ייבוא מקובץ', role: 'librarian' },
+      { id: 'sync', label: '☁️ סנכרון', role: 'librarian' },
+      { id: 'backup', label: '💾 גיבוי', role: 'admin' },
+      { id: 'staff', label: '👤 משתמשים', role: 'admin' },
+      { id: 'support', label: '⚙️ הגדרות ותמיכה', role: 'read_only' },
     ],
   },
 ];
+
+/**
+ * The colour each screen is worked in.
+ *
+ * Lending is green wherever it appears, counting is teal, the catalogue is
+ * violet. A volunteer who has been shown the lending screen once recognises
+ * it from the doorway, and a screen that looks wrong is a screen they are not
+ * supposed to be on.
+ */
+const AREA: Record<ScreenId, string> = {
+  home: 'home',
+  checkout: 'lend',
+  return: 'lend',
+  loans: 'lend',
+  intake: 'intake',
+  books: 'intake',
+  setup: 'intake',
+  import: 'intake',
+  stocktake: 'stock',
+  students: 'pupil',
+  sync: 'admin',
+  backup: 'admin',
+  staff: 'admin',
+  support: 'admin',
+};
 
 const RANK: Record<Role, number> = { read_only: 0, librarian: 1, admin: 2 };
 
@@ -151,7 +176,7 @@ export function App(): JSX.Element {
     : (permitted[0]?.id ?? 'support');
 
   return (
-    <div className="app">
+    <div className="app" data-area={AREA[current]}>
       <aside className="sidebar">
         <div className="sidebar-brand">
           <h1>ספריית בית הספר</h1>

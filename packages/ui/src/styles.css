@@ -20,46 +20,56 @@
   color-scheme: light;
 
   /*
-   * Paper, because this is a library.
+   * White, air, and one hairline.
    *
-   * The screens looked like every other piece of software, which is a way of
-   * looking like nothing. A card catalogue is a thing this school's librarians
-   * already understand — cream stock, ruled lines, a punched hole, a stamp
-   * that says what happened. The colours below are that drawer.
+   * The card-catalogue theme before this one was honest about what a library
+   * is and wrong about who uses it: nine-year-olds, on a phone, standing in a
+   * classroom. Cream paper and a rotated stamp read as old. The reference the
+   * librarian chose is libib — white surfaces, a very light page behind them,
+   * hairline borders instead of shadows, large light headings, and one strong
+   * colour used sparingly.
    */
-  --bg: #e8dcc4;
-  --surface: #fffdf6;
-  --surface-sunken: #f3ead6;
-  --surface-hover: #faf4e6;
-  --border: #cbbe9c;
-  --border-strong: #a2906a;
+  --bg: #eef1f3;
+  --surface: #ffffff;
+  --surface-sunken: #f6f8f9;
+  --surface-hover: #f2f5f6;
+  --border: #e3e8ea;
+  --border-strong: #cfd7db;
 
-  --text: #2c2418;
-  --text-secondary: #4a3f26;
-  --text-muted: #6f6243;
+  --text: #2b3338;
+  --text-secondary: #4a575e;
+  --text-muted: #828f96;
 
-  /* One accent hue, for the current item and the primary action only. */
-  --accent: #2f6b3a;
-  --accent-hover: #24522c;
-  --accent-soft: #e7f0e4;
-  --accent-ink: #24522c;
-  /* Text that sits on top of the accent, not beside it. */
+  /*
+   * The accent is not fixed: it is the colour of the area being worked in,
+   * set by [data-area] below. A volunteer knows which part of the program is
+   * open from across the room, before reading a word of it.
+   *
+   * Two shades, because they do different jobs. --accent carries white text
+   * on buttons and is dark enough to be read; --accent-bright is the brand
+   * band, where nothing small is written. The defaults are the teal of the
+   * stocktake, which is where the counting happens.
+   */
+  --accent: #0f8f80;
+  --accent-hover: #0b7366;
+  --accent-soft: #e6f6f4;
+  --accent-ink: #0b7366;
+  --accent-bright: #16b5a3;
   --on-accent: #ffffff;
 
   /* Status. Always paired with a word — colour never carries meaning alone. */
-  --ok: #2f6b3a;
-  --ok-soft: #e7f0e4;
-  --warn: #9a6b12;
-  --warn-soft: #f7ecd2;
-  --error: #9b2620;
-  --error-soft: #f8e6e2;
+  --ok: #1f7a3d;
+  --ok-soft: #e8f6eb;
+  --warn: #a06a10;
+  --warn-soft: #fdf2e2;
+  --error: #c33a2e;
+  --error-soft: #ffeeec;
 
-  /* Paper has corners. Barely rounded, not pill-shaped. */
-  --radius: 4px;
-  --radius-sm: 3px;
+  --radius: 8px;
+  --radius-sm: 6px;
 
-  --shadow-sm: 0 1px 0 #d8cbab;
-  --shadow: 0 1px 0 #d8cbab, 0 8px 22px rgb(70 56 24 / 14%);
+  --shadow-sm: 0 1px 2px rgb(29 46 56 / 5%);
+  --shadow: 0 1px 2px rgb(29 46 56 / 6%), 0 10px 28px rgb(29 46 56 / 9%);
 
   --gap-1: 0.25rem;
   --gap-2: 0.5rem;
@@ -69,6 +79,49 @@
   --gap-6: 2rem;
 
   --sidebar-width: 15rem;
+}
+
+/* ==========================================================================
+   Areas
+
+   Every screen belongs to one. The frame around the work never changes shape
+   between them — only this colour does — so nothing has to be relearned when
+   moving from counting to lending.
+   ========================================================================== */
+
+[data-area='home'] {
+  --accent: #0e7490; --accent-hover: #0a5f77; --accent-ink: #0a5f77;
+  --accent-soft: #e4f4f8; --accent-bright: #17a2c6;
+}
+
+[data-area='stock'] {
+  --accent: #0f8f80; --accent-hover: #0b7366; --accent-ink: #0b7366;
+  --accent-soft: #e6f6f4; --accent-bright: #16b5a3;
+}
+
+[data-area='intake'] {
+  --accent: #5b4fd6; --accent-hover: #4a3fbd; --accent-ink: #4a3fbd;
+  --accent-soft: #eeecfe; --accent-bright: #7b6ef6;
+}
+
+[data-area='lend'] {
+  --accent: #1f7a3d; --accent-hover: #186330; --accent-ink: #186330;
+  --accent-soft: #e8f6eb; --accent-bright: #2fa84f;
+}
+
+[data-area='pupil'] {
+  --accent: #a06a10; --accent-hover: #85570b; --accent-ink: #85570b;
+  --accent-soft: #fdf2e2; --accent-bright: #eb9f2e;
+}
+
+[data-area='scan'] {
+  --accent: #c33a2e; --accent-hover: #a52f25; --accent-ink: #a52f25;
+  --accent-soft: #ffeeec; --accent-bright: #ff6f61;
+}
+
+[data-area='admin'] {
+  --accent: #4a6274; --accent-hover: #3a4e5d; --accent-ink: #3a4e5d;
+  --accent-soft: #eef2f5; --accent-bright: #6c8599;
 }
 
 /*
@@ -90,11 +143,12 @@
     --text-secondary: #b6bec9;
     --text-muted: #8892a0;
 
-    --accent: #6ea8e8;
-    --accent-hover: #86b8ee;
-    --accent-soft: #1a2836;
-    --accent-ink: #a8ccf2;
-    --on-accent: #0c1620;
+    --accent: #2fd0bb;
+    --accent-hover: #55dcca;
+    --accent-soft: #10302c;
+    --accent-ink: #55dcca;
+    --accent-bright: #16b5a3;
+    --on-accent: #06211d;
 
     --ok: #5fc98a;
     --ok-soft: #14291d;
@@ -106,6 +160,47 @@
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
     --shadow: 0 1px 3px rgb(0 0 0 / 35%), 0 4px 12px rgb(0 0 0 / 25%);
   }
+
+  /* The same areas, lifted: a colour dark enough to read on white disappears
+     against a dark surface, so each one is raised and its tint is a deep
+     wash of itself rather than a pale one. */
+  [data-area='home'] {
+    --accent: #3fc3e0; --accent-hover: #66d2e9; --accent-ink: #66d2e9;
+    --accent-soft: #0d2a33; --accent-bright: #17a2c6;
+  }
+
+  [data-area='stock'] {
+    --accent: #2fd0bb; --accent-hover: #55dcca; --accent-ink: #55dcca;
+    --accent-soft: #10302c; --accent-bright: #16b5a3;
+  }
+
+  [data-area='intake'] {
+    --accent: #9b92fb; --accent-hover: #b3acfc; --accent-ink: #b3acfc;
+    --accent-soft: #1f1c3d; --accent-bright: #7b6ef6;
+  }
+
+  [data-area='lend'] {
+    --accent: #5fc98a; --accent-hover: #80d6a2; --accent-ink: #80d6a2;
+    --accent-soft: #14291d; --accent-bright: #2fa84f;
+  }
+
+  [data-area='pupil'] {
+    --accent: #e8b55e; --accent-hover: #efc77f; --accent-ink: #efc77f;
+    --accent-soft: #2e2413; --accent-bright: #eb9f2e;
+  }
+
+  [data-area='scan'] {
+    --accent: #ff8d81; --accent-hover: #ffa79d; --accent-ink: #ffa79d;
+    --accent-soft: #331715; --accent-bright: #ff6f61;
+  }
+
+  [data-area='admin'] {
+    --accent: #9db3c4; --accent-hover: #b6c7d4; --accent-ink: #b6c7d4;
+    --accent-soft: #1b222a; --accent-bright: #6c8599;
+  }
+
+  /* White on a lifted accent is unreadable; dark ink on it is not. */
+  [data-area] { --on-accent: #0f1419; }
 }
 
 * {
@@ -115,11 +210,6 @@
 body {
   margin: 0;
   background: var(--bg);
-  /* Ruled lines, faint, over a warm wash — after the shorthand, or it wins. */
-  background-image:
-    repeating-linear-gradient(0deg, rgb(0 0 0 / 2.5%) 0 1px, transparent 1px 28px),
-    radial-gradient(circle at 20% 10%, #f3ead6 0%, #e4d6ba 70%);
-  background-attachment: fixed;
   color: var(--text);
   font-family: 'Noto Sans Hebrew', 'Segoe UI', Arial, sans-serif;
   font-size: 15px;
@@ -156,20 +246,28 @@ h3 {
   overflow-y: auto;
 }
 
+/*
+ * The band at the top of the sidebar wears the area's colour. It is the one
+ * place in the frame that changes, and it changes on a transition so moving
+ * between areas reads as a move rather than a redraw.
+ */
 .sidebar-brand {
-  padding: var(--gap-5) var(--gap-4) var(--gap-4);
+  padding: var(--gap-5) var(--gap-4);
+  background: var(--accent-bright);
+  color: #fff;
+  transition: background 320ms ease;
 }
 
 .sidebar-brand h1 {
   font-size: 1.0625rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: -0.01em;
 }
 
 .sidebar-brand .who {
   margin-top: var(--gap-1);
   font-size: 0.8125rem;
-  color: var(--text-muted);
+  color: rgb(255 255 255 / 85%);
 }
 
 .sidebar-group {
@@ -194,12 +292,14 @@ h3 {
   background: none;
   border: none;
   border-radius: var(--radius-sm);
-  padding: 0.5rem var(--gap-3);
+  padding: 0.6rem var(--gap-3);
   margin-bottom: 1px;
   font: inherit;
   font-size: 0.9375rem;
   color: var(--text-secondary);
   cursor: pointer;
+  position: relative;
+  transition: background 160ms ease, color 160ms ease;
 }
 
 .sidebar-group button:hover {
@@ -211,6 +311,19 @@ h3 {
   background: var(--accent-soft);
   color: var(--accent-ink);
   font-weight: 600;
+}
+
+/* A bar on the edge of the open screen, in the area's colour. The tint alone
+   is easy to miss on a bright classroom screen; the bar is not. */
+.sidebar-group button[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
 .sidebar-footer {
@@ -713,7 +826,10 @@ table.data td.num {
    Scan flows — the loudest thing on the screen, deliberately
    ========================================================================== */
 
-.scan-field input {
+/* The class is on the input itself, not on a wrapper around it. Written as a
+   descendant it matched nothing, and the field a scanner types into was the
+   same size as a field for a postcode. */
+input.scan-field {
   font-size: 1.25rem;
   padding: 0.8rem 0.9rem;
   letter-spacing: 0.03em;
@@ -1275,11 +1391,12 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 }
 
 /* ---------------------------------------------------------------------------
-   The drawer: a scanned book is an index card, and its state is a stamp.
+   A scanned book, and its state.
 
-   A librarian reads the stamp before reading a word, which is the point — at
-   a book every two seconds there is no time to read a sentence. The stamp sits
-   in its own column so a long title can never run underneath it.
+   The state is read before the title: at a book every two seconds there is no
+   time for a sentence. It was a rotated rubber stamp, which looked its age;
+   it is a pill now, in the same place, doing the same job. The pill keeps its
+   own column so a long title can never run underneath it.
    --------------------------------------------------------------------------- */
 
 .index-card {
@@ -1289,53 +1406,62 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   gap: 1.5rem;
   position: relative;
   margin-top: 1rem;
-  padding: 1.4rem 2rem 1.4rem 3.4rem;
+  padding: 1.5rem 1.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow);
-  animation: card-in 180ms cubic-bezier(.2, .8, .3, 1) both;
+  box-shadow: var(--shadow-sm);
+  animation: card-in 220ms cubic-bezier(.2, .8, .3, 1) both;
 }
 
-/* The punched hole, as in the drawer this is pretending to be. */
+/* A stripe of the area's colour down the leading edge, so the card belongs
+   to the screen it was scanned on. */
 .index-card::before {
   content: '';
   position: absolute;
-  inset-inline-end: 1.35rem;
-  top: 50%;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--bg);
-  box-shadow: inset 0 1px 2px rgb(0 0 0 / 28%);
-  transform: translateY(-50%);
+  inset-inline-start: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-start-start-radius: var(--radius);
+  border-end-start-radius: var(--radius);
+  background: var(--accent);
 }
 
-.index-card .card-title { font-size: 1.7rem; font-weight: 700; line-height: 1.2; }
-.index-card .card-line { margin-top: 0.3rem; color: var(--text-secondary); }
+.index-card .card-title {
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.index-card .card-line { margin-top: 0.3rem; color: var(--text-muted); }
 .index-card .card-number {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 1.15rem;
-  letter-spacing: 0.08em;
+  font-size: 1.05rem;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  font-weight: 600;
 }
 
 .stamp {
   justify-self: end;
   white-space: nowrap;
-  padding: 0.4rem 0.9rem;
-  border: 4px solid currentcolor;
-  border-radius: 7px;
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  opacity: 0.9;
-  transform: rotate(-7deg);
-  animation: stamp-down 220ms cubic-bezier(.2, .9, .3, 1.4) both 60ms;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.05rem;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ok);
+  background: var(--ok-soft);
+  animation: pill-in 240ms cubic-bezier(.2, .9, .3, 1.3) both 60ms;
 }
 
-.stamp-ok     { color: var(--ok); }
-.stamp-repeat { color: var(--warn); }
-.stamp-none   { color: var(--error); }
+.stamp-ok     { color: var(--ok);    background: var(--ok-soft); }
+.stamp-repeat { color: var(--warn);  background: var(--warn-soft); }
+.stamp-none   { color: var(--error); background: var(--error-soft); }
 
 /* ---------------------------------------------------------------------------
    Motion: short enough that it never delays the next book.
@@ -1350,9 +1476,9 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
   to   { opacity: 1; transform: none; }
 }
 
-@keyframes stamp-down {
-  from { opacity: 0; transform: rotate(-7deg) scale(1.5); }
-  to   { opacity: .9; transform: rotate(-7deg) scale(1); }
+@keyframes pill-in {
+  from { opacity: 0; transform: scale(.88); }
+  to   { opacity: 1; transform: none; }
 }
 
 @keyframes tick-up {
@@ -1364,8 +1490,49 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 /* The counter lifts a little when it changes, so a scan is visibly counted. */
 .tile .value { animation: tick-up 200ms ease-out both; }
 
+/* The newest line in the log lights up in the area's colour and settles back.
+   The log is newest-first, so this is always the line just added. */
+.scan-log li:first-child {
+  animation: row-flash 1.4s ease-out both;
+  border-radius: var(--radius-sm);
+  padding-inline: var(--gap-2);
+  margin-inline: calc(var(--gap-2) * -1);
+}
+
+@keyframes row-flash {
+  from { background: var(--accent-soft); }
+  to   { background: transparent; }
+}
+
+/*
+ * The scanner types into this field without anyone touching it, so the field
+ * has to look alive while nothing is happening — otherwise the first question
+ * of every morning is whether the scanner is plugged in. A ring that breathes
+ * once every two and a half seconds, in the area's colour: visible across a
+ * room, not fast enough to pull the eye off a book.
+ *
+ * It is on the input itself rather than a dot beside it, because an input
+ * cannot carry a pseudo-element.
+ */
+input.scan-field,
+.scan-row input {
+  animation: listening 2.4s ease-in-out infinite;
+}
+
+@keyframes listening {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%      { box-shadow: 0 0 0 4px var(--accent-soft); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .index-card, .stamp, .tile .value { animation: none; }
+  .index-card,
+  .stamp,
+  .scan-log li:first-child,
+  input.scan-field,
+  .scan-row input,
+  .tile .value { animation: none; }
+
+  .sidebar-brand { transition: none; }
 }
 
 /* ---------------------------------------------------------------------------
