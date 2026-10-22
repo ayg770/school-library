@@ -1,8 +1,32 @@
 import type { Db } from '../db/open.js';
 import { DomainError } from './errors.js';
 
+/**
+ * The last stamp handed out, so the next one is never the same or earlier.
+ */
+let lastStamp = 0;
+
+/**
+ * The current time, and never twice the same.
+ *
+ * Every row carries `updated_at`, and the sync pushes a row only when its
+ * `updated_at` is later than the `synced_at` written when it was last sent.
+ * Two writes to one row inside the same millisecond therefore produce one
+ * stamp, and the second change is never sent — silently, and for good, until
+ * something else touches that row. A computer fast enough to lend a book,
+ * sync, and take it back within a millisecond is unlikely; a script or an
+ * import that writes in a tight loop is not, and this was reproduced by
+ * freezing the clock.
+ *
+ * So the clock is read, and if it has not moved since the last call the stamp
+ * advances by a millisecond instead. Order is preserved, the drift is at most
+ * a few milliseconds under a burst, and a clock that jumps backwards cannot
+ * produce a row that looks older than one written before it.
+ */
 export function nowIso(): string {
-  return new Date().toISOString();
+  const now = Date.now();
+  lastStamp = now > lastStamp ? now : lastStamp + 1;
+  return new Date(lastStamp).toISOString();
 }
 
 /** SQLite stores booleans as 0/1. */
