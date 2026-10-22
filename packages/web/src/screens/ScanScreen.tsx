@@ -193,11 +193,11 @@ export function ScanScreen(): JSX.Element {
       stream.current = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
       });
+      setCamera(true);
       if (video.current !== null) {
         video.current.srcObject = stream.current;
         await video.current.play();
       }
-      setCamera(true);
       looking.current = true;
 
       const Detector = (window as unknown as { BarcodeDetector: new (o?: unknown) => {
@@ -211,6 +211,13 @@ export function ScanScreen(): JSX.Element {
 
       const tick = async (): Promise<void> => {
         if (!looking.current || video.current === null) return;
+
+        // Until the first frame arrives the element has no size, and the
+        // detector either throws or reads an empty picture.
+        if (video.current.videoWidth === 0) {
+          window.setTimeout(() => void tick(), 180);
+          return;
+        }
 
         try {
           const codes = await detector.detect(video.current);
@@ -301,22 +308,26 @@ export function ScanScreen(): JSX.Element {
         )}
       </div>
 
-      {camera && (
-        <div className="viewfinder">
-          <video ref={video} playsInline muted />
-          {/* A window to aim through, and a line that sweeps it. Without
-              these a person holds the phone at nothing in particular and the
-              reader takes whichever barcode happens to be in the picture. */}
-          <div className="viewfinder-frame">
-            <span className="viewfinder-line" />
-          </div>
-          <div className="viewfinder-caption">
-            {seeing === null ? 'כוון את הפס האדום אל הברקוד' : `קורא… ${seeing}`}
-          </div>
+      {/* One video element, mounted from the start and never swapped.
+          There were two of these — a visible one and a hidden one, each
+          claiming the same ref. The stream was attached while the screen was
+          still showing the hidden one, then React moved the ref to the
+          freshly mounted visible one, which had no stream at all: a black
+          rectangle with a red line sweeping nothing. The window is hidden
+          with an attribute now, so the element the stream belongs to is the
+          element on the screen. */}
+      <div className="viewfinder" hidden={!camera}>
+        <video ref={video} playsInline muted autoPlay />
+        {/* A window to aim through, and a line that sweeps it. Without
+            these a person holds the phone at nothing in particular and the
+            reader takes whichever barcode happens to be in the picture. */}
+        <div className="viewfinder-frame">
+          <span className="viewfinder-line" />
         </div>
-      )}
-
-      {!camera && <video ref={video} playsInline muted style={{ display: 'none' }} />}
+        <div className="viewfinder-caption">
+          {seeing === null ? 'כוון את הפס האדום אל הברקוד' : `קורא… ${seeing}`}
+        </div>
+      </div>
 
       {found !== null && (
         <div className="index-card" style={{ marginTop: '1.25rem' }}>
