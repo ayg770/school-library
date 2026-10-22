@@ -53,6 +53,8 @@ export function ScanScreen(): JSX.Element {
   const [problem, setProblem] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [camera, setCamera] = useState(false);
+  /** What the camera is reading right now, shown while it confirms it. */
+  const [seeing, setSeeing] = useState<string | null>(null);
 
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
@@ -173,12 +175,14 @@ export function ScanScreen(): JSX.Element {
     stream.current?.getTracks().forEach((track) => track.stop());
     stream.current = null;
     setCamera(false);
+    setSeeing(null);
   }, []);
 
   useEffect(() => stopCamera, [stopCamera]);
 
   async function startCamera(): Promise<void> {
     setProblem(null);
+    setFound(null);
     if (!hasDetector()) {
       setProblem('הדפדפן הזה לא יודע לקרוא ברקודים מהמצלמה. אפשר להקליד את המספר.');
       return;
@@ -187,7 +191,7 @@ export function ScanScreen(): JSX.Element {
     try {
       // The back camera, because the book is in front of the phone.
       stream.current = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } },
       });
       if (video.current !== null) {
         video.current.srcObject = stream.current;
@@ -197,26 +201,57 @@ export function ScanScreen(): JSX.Element {
       looking.current = true;
 
       const Detector = (window as unknown as { BarcodeDetector: new (o?: unknown) => {
-        detect: (s: CanvasImageSource) => Promise<Array<{ rawValue: string }>>;
+        detect: (s: CanvasImageSource) => Promise<
+          Array<{ rawValue: string; boundingBox?: { x: number; width: number } }>
+        >;
       } }).BarcodeDetector;
       const detector = new Detector();
 
-      // Four looks a second: fast enough to feel instant, slow enough to leave
-      // the phone usable while it runs.
+      let previous: string | null = null;
+
       const tick = async (): Promise<void> => {
         if (!looking.current || video.current === null) return;
+
         try {
           const codes = await detector.detect(video.current);
-          const first = codes[0]?.rawValue;
-          if (first !== undefined && first !== '') {
-            stopCamera();
-            await look(first);
-            return;
+
+          // Only what is inside the aiming frame. A shelf of books fills the
+          // picture with barcodes, and the one the phone is pointed at is the
+          // one in the middle — otherwise it grabs a neighbour, which is
+          // exactly what happened on the first try.
+          const width = video.current.videoWidth || 1;
+          const aimed = codes.filter((code) => {
+            const box = code.boundingBox;
+            if (box === undefined) return true;
+            const centre = (box.x + box.width / 2) / width;
+            return centre > 0.2 && centre < 0.8;
+          });
+
+          const candidate = aimed[0]?.rawValue ?? null;
+          if (candidate !== null && candidate !== '') {
+            setSeeing(candidate);
+
+            // Twice in a row, or not at all. One blurred frame can be read as
+            // a number that was never printed, and a wrong book recorded
+            // silently is worse than a scan that takes another half second.
+            if (candidate === previous) {
+              looking.current = false;
+              await look(candidate);
+              // The picture stays up for a moment so the person sees which
+              // book was caught, rather than a window that vanishes.
+              window.setTimeout(stopCamera, 900);
+              return;
+            }
+            previous = candidate;
+          } else {
+            previous = null;
+            setSeeing(null);
           }
         } catch {
           // A frame that cannot be read is normal; the next one usually can.
         }
-        window.setTimeout(() => void tick(), 250);
+
+        window.setTimeout(() => void tick(), 180);
       };
       void tick();
     } catch {
@@ -266,19 +301,22 @@ export function ScanScreen(): JSX.Element {
         )}
       </div>
 
-      <video
-        ref={video}
-        playsInline
-        muted
-        style={{
-          display: camera ? 'block' : 'none',
-          width: '100%',
-          maxHeight: '46vh',
-          marginTop: '1rem',
-          borderRadius: 'var(--radius, 4px)',
-          background: '#000',
-        }}
-      />
+      {camera && (
+        <div className="viewfinder">
+          <video ref={video} playsInline muted />
+          {/* A window to aim through, and a line that sweeps it. Without
+              these a person holds the phone at nothing in particular and the
+              reader takes whichever barcode happens to be in the picture. */}
+          <div className="viewfinder-frame">
+            <span className="viewfinder-line" />
+          </div>
+          <div className="viewfinder-caption">
+            {seeing === null ? 'כוון את הפס האדום אל הברקוד' : `קורא… ${seeing}`}
+          </div>
+        </div>
+      )}
+
+      {!camera && <video ref={video} playsInline muted style={{ display: 'none' }} />}
 
       {found !== null && (
         <div className="index-card" style={{ marginTop: '1.25rem' }}>

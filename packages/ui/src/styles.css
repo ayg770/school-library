@@ -244,6 +244,10 @@ h3 {
 @media (max-width: 60rem) {
   .app {
     grid-template-columns: 1fr;
+    /* Navigation on top, content below, and the spare height to the content.
+       A grid shares leftover space between its rows by default, which stretched
+       the bar across a third of a phone screen with nothing in it. */
+    grid-template-rows: auto 1fr;
   }
 
   .sidebar {
@@ -1362,4 +1366,159 @@ tr.row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2
 
 @media (prefers-reduced-motion: reduce) {
   .index-card, .stamp, .tile .value { animation: none; }
+}
+
+/* ---------------------------------------------------------------------------
+   The viewfinder.
+
+   The first version opened the camera, read whatever barcode happened to be in
+   the picture, and closed again before anyone saw it. On a shelf that means
+   the neighbouring book. A person needs to see what the phone sees, know where
+   to point it, and watch the number it caught.
+   --------------------------------------------------------------------------- */
+
+.viewfinder {
+  position: relative;
+  margin-top: 1rem;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.viewfinder video {
+  display: block;
+  width: 100%;
+  max-height: 60vh;
+  object-fit: cover;
+}
+
+/* Everything outside the window is dimmed, so the eye goes to the middle. */
+.viewfinder-frame {
+  position: absolute;
+  inset: 22% 8%;
+  border: 3px solid rgb(255 255 255 / 85%);
+  border-radius: 10px;
+  box-shadow: 0 0 0 100vmax rgb(0 0 0 / 45%);
+}
+
+.viewfinder-line {
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  height: 3px;
+  background: #ff3b30;
+  box-shadow: 0 0 10px 2px rgb(255 59 48 / 70%);
+  animation: sweep 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes sweep {
+  from { top: 12%; }
+  to   { top: 88%; }
+}
+
+.viewfinder-caption {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  padding: 0.6rem 1rem;
+  background: rgb(0 0 0 / 60%);
+  color: #fff;
+  font-size: 1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewfinder-line { animation: none; top: 50%; }
+}
+
+/* ---------------------------------------------------------------------------
+   A phone held in one hand.
+
+   The office site is read on a phone in a classroom, standing up, with a book
+   in the other hand. The desktop layout survived being squeezed onto that
+   screen but was never meant for it: navigation wrapped into a block of small
+   words, buttons were thumbnail-sized, and the page was mostly margin.
+   --------------------------------------------------------------------------- */
+
+@media (max-width: 40rem) {
+  .content { padding: var(--gap-3); }
+
+  /* Navigation becomes one row that scrolls sideways, like every other app on
+     the phone, instead of a paragraph of links. */
+  .sidebar { padding: var(--gap-2) var(--gap-3); }
+  .sidebar-brand h1 { font-size: 1.1rem; }
+  .sidebar-brand p { font-size: 0.85rem; }
+  .sidebar-group h2 { display: none; }
+
+  .sidebar-group {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: var(--gap-2);
+    padding-bottom: 2px;
+  }
+  .sidebar-group::-webkit-scrollbar { display: none; }
+
+  .sidebar-group button {
+    flex: 0 0 auto;
+    padding: 0.6rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+  .sidebar-group button[aria-current='page'] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+
+  /* The header is pure overhead on a phone: every pixel it takes is a pixel
+     the book is not shown in. Sign-out is pressed once a week, so it does not
+     get a thumb-sized target the way the working buttons do. */
+  .sidebar-brand { padding: var(--gap-2) var(--gap-3) var(--gap-1); }
+  .sidebar-footer {
+    margin-top: 0;
+    border-top: none;
+    padding: var(--gap-1) var(--gap-3) var(--gap-2);
+  }
+  .sidebar-footer .btn {
+    min-height: 0;
+    padding: 0.35rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  /* Thumbs, not cursors: 48px is the smallest target a finger hits reliably. */
+  .btn, .pick-list button {
+    min-height: 48px;
+    padding: 0.8rem 1.1rem;
+    font-size: 1.05rem;
+  }
+
+  .form-actions { gap: var(--gap-2); }
+  .form-actions .btn { flex: 1 1 auto; justify-content: center; }
+
+  input, select, textarea { min-height: 48px; font-size: 1.05rem; }
+
+  /* iOS zooms the page in when a field's text is under 16px. */
+  .scan-row input { font-size: 1.15rem; }
+  .scan-row { flex-wrap: nowrap; }
+  .scan-row .btn { min-width: 5.5rem; }
+
+  .card { padding: var(--gap-4); }
+  .page-head h2 { font-size: 1.4rem; }
+
+  /* The index card keeps its stamp, but underneath rather than beside: there
+     is no room for two columns, and the title must not shrink to make one. */
+  .index-card {
+    grid-template-columns: 1fr;
+    gap: var(--gap-3);
+    padding: var(--gap-4) var(--gap-4) var(--gap-4) 2.6rem;
+  }
+  .index-card .card-title { font-size: 1.4rem; }
+  .stamp { justify-self: start; font-size: 1rem; }
+
+  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  .table-wrap { overflow-x: auto; }
 }
