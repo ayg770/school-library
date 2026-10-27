@@ -302,15 +302,23 @@ describe('sign-in and access control', () => {
       expect((response.json() as { error: { code: string } }).error.code).toBe('DUPLICATE_VALUE');
     });
 
-    it('rejects a short password', async () => {
-      const response = await harness.post('/api/v1/staff', {
+    it('takes a four-character code, and refuses three', async () => {
+      // Four, because the volunteers are nine. What keeps it safe is that
+      // guessing is slow, not that the code is long.
+      const four = await harness.post('/api/v1/staff', {
+        username: 'short-code',
+        password: '4821',
+        displayName: 'קוד קצר',
+      });
+      expect(four.statusCode).toBe(201);
+
+      const three = await harness.post('/api/v1/staff', {
         username: 'weak',
         password: '123',
-        displayName: 'סיסמה חלשה',
+        displayName: 'קוד חלש',
       });
-
-      expect(response.statusCode).toBe(400);
-      expect((response.json() as { error: { message: string } }).error.message).toContain('8');
+      expect(three.statusCode).toBe(400);
+      expect((three.json() as { error: { message: string } }).error.message).toContain('4');
     });
 
     it('refuses to remove the last administrator', async () => {
@@ -421,7 +429,7 @@ describe('sign-in and access control', () => {
       try {
         const short = await harness.post('/api/v1/auth/password', {
           currentPassword: 'test-password',
-          newPassword: 'short',
+          newPassword: '123',
         });
         expect(short.statusCode).toBe(400);
       } finally {

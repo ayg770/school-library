@@ -115,7 +115,7 @@ export function StaffScreen({ currentUser }: StaffScreenProps): JSX.Element {
                   onChange={(event) => setPassword(event.target.value)}
                   dir="ltr"
                 />
-                <p className="hint">לפחות 8 תווים. ספרות בלבד זה בסדר.</p>
+                <p className="hint">לפחות 4 תווים. ספרות בלבד זה בסדר.</p>
               </Field>
               <Field label="הרשאה" htmlFor="new-role">
                 <select id="new-role" value={role} onChange={(event) => setRole(event.target.value as Role)}>
@@ -166,7 +166,7 @@ export function StaffScreen({ currentUser }: StaffScreenProps): JSX.Element {
                 dir="ltr"
                 autoFocus
               />
-              <p className="hint">לפחות 8 תווים. ספרות בלבד זה בסדר.</p>
+              <p className="hint">לפחות 4 תווים. ספרות בלבד זה בסדר.</p>
             </Field>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary" disabled={busy}>

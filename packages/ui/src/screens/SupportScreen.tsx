@@ -123,7 +123,7 @@ export function SupportScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.E
         ) : (
           <>
             <p className="hint">
-              מנהל המערכת נותן סיסמה ראשונה. כאן אתה מחליף אותה בסיסמה שרק אתה יודע — לפחות 8 תווים.
+              מנהל המערכת נותן קוד ראשון. כאן אתה מחליף אותו בקוד שרק אתה יודע — לפחות 4 תווים.
             </p>
             {passwordProblem !== null && <Notice kind="error">{passwordProblem}</Notice>}
             <form onSubmit={(event) => void submitPassword(event)}>
