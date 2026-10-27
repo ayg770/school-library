@@ -236,7 +236,7 @@ export function LoginScreen({ setupRequired, onSignedIn }: LoginScreenProps): JS
                 />
               </Field>
 
-              {setupRequired && <p className="hint">לפחות 8 תווים. ספרות בלבד זה בסדר.</p>}
+              {setupRequired && <p className="hint">לפחות 4 תווים. ספרות בלבד זה בסדר.</p>}
 
               <div className="form-actions">
                 <button type="submit" className="btn btn-primary" disabled={busy}>

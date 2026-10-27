@@ -59,11 +59,38 @@ interface UserRow {
   active: number;
   created_at: string;
   updated_at: string;
+  failed_attempts: number;
+  locked_until: string | null;
 }
 
 const SESSION_DAYS = 14;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
-const MIN_PASSWORD_LENGTH = 8;
+/**
+ * How short a code may be.
+ *
+ * Four, because the volunteers are nine and the librarian would rather they
+ * remembered a code than wrote it on the inside of a pencil case. What keeps
+ * a four-character code safe is not its length but that guessing is slow —
+ * see `THROTTLE` below, which is the other half of this decision and should
+ * not be removed without putting the length back.
+ */
+const MIN_PASSWORD_LENGTH = 4;
+
+/**
+ * How long an account stops answering after consecutive wrong codes.
+ *
+ * The first few mistakes cost nothing: a child mistyping their own code is
+ * the common case and must not be punished. Past that the waits grow, so a
+ * person working through four digits by hand gets a handful of tries an hour
+ * instead of a thousand a minute. Ten thousand possibilities at that rate is
+ * years, which is the point.
+ *
+ * Counted per account and kept in the database, because this program is
+ * closed and opened all day and a counter that forgets at every launch
+ * protects nothing.
+ */
+const THROTTLE_AFTER = 5;
+const THROTTLE_WAITS_MS = [30_000, 60_000, 300_000, 900_000] as const;
 
 function mapUser(row: UserRow): StaffUser {
   return {
@@ -248,11 +275,15 @@ export function updateStaffUser(db: Db, publicId: string, input: UpdateStaffUser
 
   if (input.password !== undefined) {
     const password = requirePassword(input.password);
-    db.prepare('UPDATE staff_users SET password_hash = ?, updated_at = ? WHERE public_id = ?').run(
-      hashPassword(password),
-      timestamp,
-      publicId,
-    );
+    // A new code clears the wrong-code counter with it. The usual reason an
+    // administrator is setting one is that somebody is locked out, and a new
+    // code that still refuses to be typed for a quarter of an hour is not a
+    // way out of that.
+    db.prepare(
+      `UPDATE staff_users
+          SET password_hash = ?, failed_attempts = 0, locked_until = NULL, updated_at = ?
+        WHERE public_id = ?`,
+    ).run(hashPassword(password), timestamp, publicId);
     // A password change ends every session that used the old one.
     revokeAllSessionsFor(db, publicId);
   }
@@ -337,13 +368,42 @@ export function signIn(db: Db, username: unknown, password: unknown): Session {
     .prepare('SELECT * FROM staff_users WHERE username = ?')
     .get(normaliseUsername(username)) as UserRow | undefined;
 
+  // Still waiting out earlier wrong codes. Said plainly, with the seconds
+  // left: the sign-in screen lists every account on this computer by name, so
+  // there is nothing here to give away, and a child told only "wrong code"
+  // while the account is sealed would try again and again and be right every
+  // time.
+  if (row !== undefined && row.locked_until !== null && row.locked_until > nowIso()) {
+    const seconds = Math.max(
+      1,
+      Math.ceil((Date.parse(row.locked_until) - Date.now()) / 1000),
+    );
+    throw new DomainError(
+      'BAD_CREDENTIALS',
+      `יותר מדי ניסיונות שגויים. נסה שוב בעוד ${seconds} שניות.`,
+      'password',
+    );
+  }
+
   // Hash anyway when the user does not exist, so the reply takes a similar time.
   const storedHash = row?.password_hash ?? hashPassword('placeholder-for-timing');
   const passwordMatches = verifyPassword(password, storedHash);
 
-  if (row === undefined || !passwordMatches) throw failure;
+  if (row === undefined || !passwordMatches) {
+    if (row !== undefined) recordFailure(db, row);
+    throw failure;
+  }
+
   if (row.active !== 1) {
     throw new DomainError('VALIDATION', 'המשתמש אינו פעיל. פנה למנהל המערכת.', 'username');
+  }
+
+  // The right code clears the slate, so a bad morning never follows a child
+  // into the afternoon.
+  if (row.failed_attempts !== 0 || row.locked_until !== null) {
+    db.prepare(
+      'UPDATE staff_users SET failed_attempts = 0, locked_until = NULL WHERE id = ?',
+    ).run(row.id);
   }
 
   const token = randomBytes(32).toString('base64url');
@@ -387,6 +447,33 @@ export function resolveSession(db: Db, token: string | undefined): StaffUser | n
 
   db.prepare('UPDATE staff_sessions SET last_seen_at = ? WHERE id = ?').run(nowIso(), row.session_id);
   return mapUser(row);
+}
+
+/**
+ * One more wrong code against this account, and the wait it earns.
+ *
+ * The wait is chosen by how many failures there have been, not by multiplying
+ * the last one, so it cannot run away and lock a librarian out for a day
+ * because a scanner emptied a queue of keystrokes into the field.
+ */
+function recordFailure(db: Db, row: UserRow): void {
+  const attempts = row.failed_attempts + 1;
+  const over = attempts - THROTTLE_AFTER;
+
+  const lockedUntil =
+    over < 0
+      ? null
+      : new Date(
+          Date.now() +
+            (THROTTLE_WAITS_MS[Math.min(over, THROTTLE_WAITS_MS.length - 1)] ??
+              THROTTLE_WAITS_MS[0]),
+        ).toISOString();
+
+  db.prepare('UPDATE staff_users SET failed_attempts = ?, locked_until = ? WHERE id = ?').run(
+    attempts,
+    lockedUntil,
+    row.id,
+  );
 }
 
 export function signOut(db: Db, token: string | undefined): void {

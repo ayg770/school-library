@@ -4,11 +4,13 @@ import {
   ensureDefaultSettings,
   migrations,
   openDatabase,
+  listStaffUsers,
   readSettings,
   resolveSession,
   revokeAllSessions,
   runMigrations,
   signIn,
+  updateStaffUser,
   type Db,
 } from '../src/index.js';
 
@@ -121,5 +123,80 @@ describe('signing everyone out', () => {
     ensureDefaultSettings(db);
 
     expect(readSettings(db).lock_when_unattended).toBe(true);
+  });
+});
+
+/**
+ * A four-character code, and the thing that makes it safe.
+ *
+ * Ten thousand possibilities is not many. What stands between a short code
+ * and somebody with an evening alone at the library computer is that the
+ * account stops answering after a handful of wrong tries — a few attempts an
+ * hour rather than thousands a minute. A child who fumbles their own code
+ * twice must notice none of it.
+ */
+describe('a short code', () => {
+  let db: Db;
+
+  beforeEach(() => {
+    db = openDatabase({ file: ':memory:' });
+    runMigrations(db, migrations);
+    createStaffUser(db, { username: 'mendy', password: '4821', displayName: 'מנדי' });
+  });
+
+  afterEach(() => db.close());
+
+  const wrong = (): unknown => {
+    try {
+      signIn(db, 'mendy', '0000');
+      return null;
+    } catch (cause) {
+      return cause;
+    }
+  };
+
+  it('is allowed at four characters, and refused at three', () => {
+    expect(signIn(db, 'mendy', '4821').user.username).toBe('mendy');
+    expect(() => createStaffUser(db, { username: 'x', password: '123', displayName: 'x' })).toThrow(
+      /4/,
+    );
+  });
+
+  it('forgives the first few mistakes', () => {
+    for (let i = 0; i < 4; i += 1) wrong();
+
+    // Nothing has been locked: the child simply types it correctly.
+    expect(signIn(db, 'mendy', '4821').user.username).toBe('mendy');
+  });
+
+  it('stops answering once the wrong code keeps coming', () => {
+    for (let i = 0; i < 5; i += 1) wrong();
+
+    // Even the right code waits now — which is the whole protection: a
+    // guesser cannot tell a locked account from a wrong guess, and gets a
+    // handful of tries an hour either way.
+    expect(() => signIn(db, 'mendy', '4821')).toThrow(/ניסיונות/);
+  });
+
+  it('clears the count the moment the right code arrives', () => {
+    for (let i = 0; i < 4; i += 1) wrong();
+    signIn(db, 'mendy', '4821');
+
+    // A bad morning does not follow a child into the afternoon: the next four
+    // mistakes start from nothing again.
+    for (let i = 0; i < 4; i += 1) wrong();
+    expect(signIn(db, 'mendy', '4821').user.username).toBe('mendy');
+  });
+
+  it('is unlocked by an administrator setting a new code', () => {
+    for (let i = 0; i < 6; i += 1) wrong();
+    expect(() => signIn(db, 'mendy', '4821')).toThrow(/ניסיונות/);
+
+    const [user] = listStaffUsers(db).filter((person) => person.username === 'mendy');
+    updateStaffUser(db, user!.publicId, { password: '7391' });
+
+    // The usual reason for a new code is that somebody is locked out, so a
+    // new one that still refuses to be typed would be no way out.
+    expect(signIn(db, 'mendy', '7391').user.username).toBe('mendy');
   });
 });

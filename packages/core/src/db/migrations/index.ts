@@ -8,6 +8,7 @@ import { migration006 } from './006-sync.js';
 import { migration007 } from './007-shared-catalogue.js';
 import { migration008 } from './008-stocktake.js';
 import { migration009 } from './009-catalogue-reports.js';
+import { migration010 } from './010-sign-in-attempts.js';
 
 /**
  * Every migration, in order.
@@ -25,4 +26,5 @@ export const migrations: readonly Migration[] = [
   migration007,
   migration008,
   migration009,
+  migration010,
 ];
