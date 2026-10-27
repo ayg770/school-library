@@ -3,6 +3,7 @@ import {
   ROLES,
   createStaffUser,
   getStaffUser,
+  listSignInNames,
   listStaffUsers,
   needsFirstUser,
   signIn,
@@ -54,6 +55,17 @@ export function registerAuthRoutes(app: FastifyInstance, context: AppContext): v
       user: request.staffUser,
       setupRequired: needsFirstUser(context.db),
     }),
+  );
+
+  /**
+   * The names offered on the sign-in screen, before anyone has signed in.
+   *
+   * Readable without a session by design — a child cannot pick a name from a
+   * list that is not there. It carries a username, a display name and a role,
+   * and never a hash or a timestamp.
+   */
+  app.get('/api/v1/auth/people', async (_request, reply) =>
+    reply.send({ items: listSignInNames(context.db) }),
   );
 
   app.post('/api/v1/auth/login', async (request, reply) => {

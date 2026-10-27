@@ -1,4 +1,4 @@
-import { createStaffUser, listStaffUsers } from '@school-library/core';
+import { createStaffUser, listStaffUsers, updateStaffUser } from '@school-library/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createBareTestApp, createTestApp, type TestApp } from './helpers.js';
 
@@ -37,6 +37,41 @@ describe('sign-in and access control', () => {
     it('lets health through, because it carries nothing private', async () => {
       const response = await anonymous('GET', '/api/v1/health');
       expect(response.statusCode).toBe(200);
+    });
+
+    it('offers the names to sign in with, before anyone has signed in', async () => {
+      // The sign-in screen cannot ask who is at the desk without them.
+      const response = await anonymous('GET', '/api/v1/auth/people');
+      expect(response.statusCode).toBe(200);
+
+      const names = (response.json() as { items: { displayName: string }[] }).items;
+      expect(names.map((item) => item.displayName)).toContain('מנהל ראשוני');
+    });
+
+    it('carries nothing but a name, a username and a role', async () => {
+      const response = await anonymous('GET', '/api/v1/auth/people');
+
+      const [person] = (response.json() as { items: Record<string, unknown>[] }).items;
+      expect(Object.keys(person ?? {}).sort()).toEqual(['displayName', 'role', 'username']);
+      // Said plainly, because a hash on a screen nobody has signed in to
+      // would be a password left on the desk overnight.
+      expect(response.body).not.toContain('password');
+    });
+
+    it('leaves out an account that was switched off', async () => {
+      const [first] = listStaffUsers(harness.context.db);
+      createStaffUser(harness.context.db, {
+        username: 'yotzim',
+        password: 'another-password',
+        displayName: 'ספרן שעזב',
+      });
+      const [, left] = listStaffUsers(harness.context.db);
+      updateStaffUser(harness.context.db, left!.publicId, { active: false });
+
+      const response = await anonymous('GET', '/api/v1/auth/people');
+      const names = (response.json() as { items: { displayName: string }[] }).items;
+
+      expect(names.map((item) => item.displayName)).toEqual([first!.displayName]);
     });
 
     it('refuses a made-up cookie', async () => {

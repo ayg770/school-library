@@ -9,6 +9,7 @@ import {
   currentRound,
   finishRound,
   listMissing,
+  listRoundCopies,
   listRounds,
   migrations,
   openDatabase,
@@ -170,6 +171,50 @@ describe('counting the shelves', () => {
       expect(progress.missing).toBe(2);
 
       expect(listMissing(db).items.map((c) => c.barcode).sort()).toEqual(['001', '003']);
+    });
+
+    /**
+     * Each tile on the screen opens the books behind its number, so the two
+     * have to agree. A list that disagrees with the count above it is worse
+     * than no list: it is read as a second, contradictory count.
+     */
+    it('opens the counted pile, and it matches the number that was counted', () => {
+      recordScan(db, { barcode: '002' });
+      recordScan(db, { barcode: '003' });
+
+      const counted = listRoundCopies(db, 'counted');
+
+      expect(counted.total).toBe(stocktakeProgress(db).seen);
+      expect(counted.items.map((copy) => copy.barcode).sort()).toEqual(['002', '003']);
+    });
+
+    it('opens the books needing attention, and leaves the sound ones out', () => {
+      recordScan(db, { barcode: '001' });
+      recordScan(db, { barcode: '002', conditionStatus: 'damaged' });
+      recordScan(db, { barcode: '003', conditionStatus: 'repair' });
+
+      const attention = listRoundCopies(db, 'attention');
+      const progress = stocktakeProgress(db);
+
+      expect(attention.total).toBe(progress.byCondition.damaged + progress.byCondition.repair);
+      expect(attention.items.map((copy) => copy.barcode).sort()).toEqual(['002', '003']);
+      expect(attention.items.map((copy) => copy.condition).sort()).toEqual(['damaged', 'repair']);
+    });
+
+    it('keeps a counted book in its list even once it is marked sound again', () => {
+      recordScan(db, { barcode: '002', conditionStatus: 'damaged' });
+      recordScan(db, { barcode: '002', conditionStatus: 'normal' });
+
+      expect(listRoundCopies(db, 'attention').items).toEqual([]);
+      expect(listRoundCopies(db, 'counted').items.map((copy) => copy.barcode)).toEqual(['002']);
+    });
+
+    it('has nothing to open when no round is running', () => {
+      finishRound(db);
+
+      for (const group of ['counted', 'missing', 'attention'] as const) {
+        expect(listRoundCopies(db, group)).toEqual({ items: [], total: 0 });
+      }
     });
 
     it('does not expect a copy that was withdrawn', () => {

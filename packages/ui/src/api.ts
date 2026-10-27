@@ -75,6 +75,14 @@ export interface MissingCopy {
   onLoanTo: string | null;
 }
 
+/** Which pile of the round a list is asking for. */
+export type RoundGroup = 'missing' | 'counted' | 'attention';
+
+/** A row of such a list; a counted book carries the condition it was in. */
+export interface RoundCopy extends MissingCopy {
+  condition: ConditionStatus;
+}
+
 export interface SyncStatus {
   connected: boolean;
   connectedEmail: string | null;
@@ -321,6 +329,13 @@ export interface StaffUser {
   active: boolean;
 }
 
+/** A name offered on the sign-in screen. No account details beyond these. */
+export interface SignInName {
+  username: string;
+  displayName: string;
+  role: Role;
+}
+
 export interface SessionState {
   user: StaffUser | null;
   setupRequired: boolean;
@@ -451,6 +466,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
+  signInNames: () => request<{ items: SignInName[] }>('/api/v1/auth/people'),
   logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
   setup: (body: { username: string; password: string; displayName: string }) =>
     request<{ user: StaffUser }>('/api/v1/auth/setup', {
@@ -605,6 +621,12 @@ export const api = {
     }),
   missingCopies: (limit = 200) =>
     request<{ items: MissingCopy[]; total: number }>(`/api/v1/stocktake/missing?limit=${limit}`),
+
+  /** The books behind one of the numbers on the stocktake screen. */
+  roundCopies: (group: RoundGroup, limit = 500) =>
+    request<{ items: RoundCopy[]; total: number }>(
+      `/api/v1/stocktake/copies?group=${group}&limit=${limit}`,
+    ),
 
   /** "This is not that book" — one press from the desk. */
   reportMismatch: (barcode: string, body: { actualTitle?: string; note?: string } = {}) =>

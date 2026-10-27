@@ -29,6 +29,7 @@ export const SESSION_COOKIE = 'library_session';
 const PUBLIC_ROUTES = new Set([
   'GET /api/v1/health',
   'GET /api/v1/auth/session',
+  'GET /api/v1/auth/people',
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/logout',
   'POST /api/v1/auth/setup',

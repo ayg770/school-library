@@ -4,8 +4,9 @@ import {
   api,
   formatDate,
   type ConditionStatus,
-  type MissingCopy,
   type CatalogueReport,
+  type RoundCopy,
+  type RoundGroup,
   type ScanResult,
   type StocktakeProgress,
 } from '../api.js';
@@ -33,6 +34,28 @@ const CONDITION_LABELS: Record<ConditionStatus, string> = {
   repair: 'דורש תיקון',
   lost: 'אבוד',
   withdrawn: 'הוצא משימוש',
+};
+
+/** Colour for a condition shown in a list, never carrying the meaning alone. */
+const CONDITION_TONE: Record<ConditionStatus, string> = {
+  normal: 'status-ok',
+  damaged: 'status-error',
+  repair: 'status-warn',
+  lost: 'status-error',
+  withdrawn: 'status-neutral',
+};
+
+/** What each number on the screen opens, said as a heading. */
+const PANEL_TITLES: Record<RoundGroup, string> = {
+  counted: 'נספרו בסבב',
+  missing: 'עוד לא נמצאו',
+  attention: 'דורשים טיפול',
+};
+
+const PANEL_EMPTY: Record<RoundGroup, string> = {
+  counted: 'עוד לא נספר שום ספר בסבב הזה.',
+  missing: 'כל הספרים נמצאו. 🎉',
+  attention: 'אף ספר לא סומן כפגום או כדורש תיקון.',
 };
 
 /**
@@ -75,7 +98,16 @@ export function StocktakeScreen({
   const [progress, setProgress] = useState<StocktakeProgress | null>(null);
   const [last, setLast] = useState<ScanResult | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
-  const [missing, setMissing] = useState<{ items: MissingCopy[]; total: number } | null>(null);
+  /**
+   * The books behind one of the numbers above, when one has been pressed.
+   *
+   * Every tile is a count, and a count cannot be acted on: "2,042 not yet
+   * found" is a fact about the library, while the list of them is an
+   * afternoon of work. Pressing the number opens it.
+   */
+  const [panel, setPanel] = useState<
+    { group: RoundGroup; items: RoundCopy[]; total: number } | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const [roundName, setRoundName] = useState('');
   const [busy, setBusy] = useState(false);
@@ -240,7 +272,7 @@ export function StocktakeScreen({
     setBusy(true);
     try {
       await api.finishStocktake();
-      setMissing(null);
+      setPanel(null);
       setLast(null);
       await load();
     } catch (cause) {
@@ -250,10 +282,18 @@ export function StocktakeScreen({
     }
   }
 
-  async function showMissing(): Promise<void> {
+  /** Opens one of the lists, or closes it if that one is already open. */
+  async function showGroup(group: RoundGroup): Promise<void> {
+    if (panel?.group === group) {
+      setPanel(null);
+      return;
+    }
+
     setBusy(true);
     try {
-      setMissing(await api.missingCopies());
+      const reply = await api.roundCopies(group);
+      setPanel({ group, items: reply.items, total: reply.total });
+      setShowReports(false);
     } catch (cause) {
       setError(cause instanceof ApiError ? cause.message : 'טעינת הרשימה נכשלה.');
     } finally {
@@ -333,39 +373,139 @@ export function StocktakeScreen({
         </section>
       ) : (
         <>
+          {/* Every tile with a list behind it opens it. A number on a screen
+              that cannot be opened is a number somebody writes on paper and
+              then goes looking for by hand. */}
           <div className="kpi-row">
-            <div className="tile">
+            <button
+              type="button"
+              className={`tile tile-open ${panel?.group === 'counted' ? 'tile-current' : ''}`}
+              onClick={() => void showGroup('counted')}
+              aria-expanded={panel?.group === 'counted'}
+              disabled={busy}
+            >
               <div className="label">נספרו</div>
               <div className="value">{progress.seen.toLocaleString('he-IL')}</div>
               <div className="note">מתוך {progress.expected.toLocaleString('he-IL')} · {percent}%</div>
-            </div>
+            </button>
 
-            <div className={`tile ${progress.missing > 0 ? 'tile-warn' : ''}`}>
+            <button
+              type="button"
+              className={`tile tile-open ${progress.missing > 0 ? 'tile-warn' : ''} ${
+                panel?.group === 'missing' ? 'tile-current' : ''
+              }`}
+              onClick={() => void showGroup('missing')}
+              aria-expanded={panel?.group === 'missing'}
+              disabled={busy}
+            >
               <div className="label">עוד לא נמצאו</div>
               <div className="value">{progress.missing.toLocaleString('he-IL')}</div>
               <div className="note">{progress.missing === 0 ? 'הכול נמצא' : 'כולל ספרים מושאלים'}</div>
-            </div>
+            </button>
 
-            <div className="tile">
+            <button
+              type="button"
+              className={`tile tile-open ${panel?.group === 'attention' ? 'tile-current' : ''}`}
+              onClick={() => void showGroup('attention')}
+              aria-expanded={panel?.group === 'attention'}
+              disabled={busy}
+            >
               <div className="label">דורשים טיפול</div>
               <div className="value">
                 {(progress.byCondition.damaged + progress.byCondition.repair).toLocaleString('he-IL')}
               </div>
               <div className="note">פגומים או לתיקון</div>
-            </div>
+            </button>
 
-            <div className={`tile ${openReports > 0 ? 'tile-warn' : ''}`}>
+            <button
+              type="button"
+              className={`tile tile-open ${openReports > 0 ? 'tile-warn' : ''} ${
+                showReports ? 'tile-current' : ''
+              }`}
+              onClick={() => {
+                setPanel(null);
+                setShowReports((shown) => !shown);
+              }}
+              aria-expanded={showReports}
+            >
               <div className="label">אי-התאמות</div>
               <div className="value">{openReports.toLocaleString('he-IL')}</div>
               <div className="note">{openReports === 0 ? 'אין דיווחים' : 'ממתינות לבדיקה'}</div>
-            </div>
+            </button>
 
+            {/* The round is not a list of anything, so it stays a plain tile
+                rather than looking like a button that does nothing. */}
             <div className="tile">
               <div className="label">הסבב</div>
               <div className="value" style={{ fontSize: '1.1rem' }}>{open.name}</div>
               <div className="note">מאז {formatDate(open.startedAt)}</div>
             </div>
           </div>
+
+        {panel !== null && (
+          <section className="card">
+            <div className="card-header">
+              <h2>
+                {PANEL_TITLES[panel.group]} — {panel.total.toLocaleString('he-IL')}
+              </h2>
+              <button type="button" className="btn" onClick={() => setPanel(null)}>
+                סגור
+              </button>
+            </div>
+
+            {panel.items.length === 0 ? (
+              <p className="empty">{PANEL_EMPTY[panel.group]}</p>
+            ) : (
+              <>
+                {/* The list is capped, and a list that quietly stops at 500 is
+                    a list that sends somebody looking for the rest. */}
+                {panel.total > panel.items.length && (
+                  <p className="hint" style={{ marginTop: 0 }}>
+                    מוצגים {panel.items.length.toLocaleString('he-IL')} הראשונים מתוך{' '}
+                    {panel.total.toLocaleString('he-IL')}.
+                  </p>
+                )}
+                <div className="table-wrap">
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>מס׳ סידורי</th>
+                        <th>שם הספר</th>
+                        <th>מדף</th>
+                        <th>{panel.group === 'missing' ? 'איפה הוא' : 'מצב'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {panel.items.map((copy) => (
+                        <tr key={copy.publicId}>
+                          <td className="value-ltr">{copy.barcode}</td>
+                          <td>
+                            {copy.title}
+                            {copy.author !== null && <div className="hint">{copy.author}</div>}
+                          </td>
+                          <td>{copy.shelfName ?? '—'}</td>
+                          <td>
+                            {panel.group === 'missing' ? (
+                              copy.onLoanTo === null ? (
+                                <span className="hint">לא נמצא</span>
+                              ) : (
+                                <>מושאל ל{copy.onLoanTo}</>
+                              )
+                            ) : (
+                              <span className={`status ${CONDITION_TONE[copy.condition]}`}>
+                                {CONDITION_LABELS[copy.condition]}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
           <section className="card">
             <h2>סרוק ספר</h2>
@@ -419,14 +559,14 @@ export function StocktakeScreen({
             <button type="button" className="btn btn-primary" onClick={() => onGo('home')}>
               הפסק לעכשיו — הכול נשמר
             </button>
-            <button type="button" className="btn" onClick={() => void showMissing()} disabled={busy}>
-              הצג מה עוד לא נמצא
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void showGroup('missing')}
+              disabled={busy}
+            >
+              {panel?.group === 'missing' ? 'הסתר את מה שלא נמצא' : 'הצג מה עוד לא נמצא'}
             </button>
-            {openReports > 0 && (
-              <button type="button" className="btn" onClick={() => setShowReports((open) => !open)}>
-                {showReports ? 'הסתר אי-התאמות' : `הצג אי-התאמות (${openReports})`}
-              </button>
-            )}
 
           </div>
         </>
@@ -498,45 +638,6 @@ export function StocktakeScreen({
         </section>
       )}
 
-      {missing !== null && (
-        <section className="card">
-          <div className="card-header">
-            <h2>עוד לא נמצאו — {missing.total.toLocaleString('he-IL')}</h2>
-          </div>
-          {missing.items.length === 0 ? (
-            <p className="empty">כל הספרים נמצאו. 🎉</p>
-          ) : (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ברקוד</th>
-                    <th>שם הספר</th>
-                    <th>מדף</th>
-                    <th>איפה הוא</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missing.items.map((copy) => (
-                    <tr key={copy.publicId}>
-                      <td dir="ltr">{copy.barcode}</td>
-                      <td>{copy.title}</td>
-                      <td>{copy.shelfName ?? '—'}</td>
-                      <td>
-                        {copy.onLoanTo === null ? (
-                          <span className="hint">לא נמצא</span>
-                        ) : (
-                          <>מושאל ל{copy.onLoanTo}</>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
     </>
   );
 }

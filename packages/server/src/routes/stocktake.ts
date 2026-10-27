@@ -4,6 +4,7 @@ import {
   reportMismatch,
   resolveReport,
   listMissing,
+  listRoundCopies,
   listRounds,
   recordScan,
   startRound,
@@ -45,6 +46,9 @@ const finishBody = z.object({ note: z.string().optional() });
 const missingQuery = z.object({
   limit: z.coerce.number().int().positive().max(500).optional(),
   offset: z.coerce.number().int().min(0).optional(),
+});
+const roundCopiesQuery = missingQuery.extend({
+  group: z.enum(['missing', 'counted', 'attention']),
 });
 
 export function registerStocktakeRoutes(app: FastifyInstance, context: AppContext): void {
@@ -116,5 +120,11 @@ export function registerStocktakeRoutes(app: FastifyInstance, context: AppContex
   app.get('/api/v1/stocktake/missing', async (request, reply) => {
     const options = parseInput(missingQuery, request.query, 'סינון');
     return reply.send(listMissing(context.db, options));
+  });
+
+  /** The books behind one of the numbers on the stocktake screen. */
+  app.get('/api/v1/stocktake/copies', async (request, reply) => {
+    const { group, ...options } = parseInput(roundCopiesQuery, request.query, 'סינון');
+    return reply.send(listRoundCopies(context.db, group, options));
   });
 }

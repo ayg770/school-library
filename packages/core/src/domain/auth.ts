@@ -180,6 +180,41 @@ export function getStaffUser(db: Db, publicId: string): StaffUser {
   return mapUser(row);
 }
 
+/** A name on the sign-in screen: enough to pick, and nothing more. */
+export interface SignInName {
+  readonly username: string;
+  readonly displayName: string;
+  readonly role: Role;
+}
+
+/**
+ * Who may sign in at this computer.
+ *
+ * The sign-in screen offers the names instead of asking for one to be typed:
+ * the volunteers are children, and a name typed wrong is indistinguishable
+ * from a password typed wrong. That means the list is readable before anyone
+ * has signed in, which is a deliberate trade. On a library computer the
+ * people who can reach this screen are the people standing in the room, and
+ * the names are already written on the rota by the door; a password is still
+ * required, and a locked account is not offered at all.
+ *
+ * It returns the three fields the screen draws with. The row carries a
+ * password hash, so it never leaves this function.
+ */
+export function listSignInNames(db: Db): SignInName[] {
+  const rows = db
+    .prepare(
+      'SELECT username, display_name, role FROM staff_users WHERE active = 1 ORDER BY display_name',
+    )
+    .all() as { username: string; display_name: string; role: Role }[];
+
+  return rows.map((row) => ({
+    username: row.username,
+    displayName: row.display_name,
+    role: row.role,
+  }));
+}
+
 export function listStaffUsers(db: Db): StaffUser[] {
   const rows = db.prepare('SELECT * FROM staff_users ORDER BY display_name').all() as UserRow[];
   return rows.map(mapUser);
@@ -294,7 +329,7 @@ function hashToken(token: string): string {
  * accounts exist.
  */
 export function signIn(db: Db, username: unknown, password: unknown): Session {
-  const failure = new DomainError('VALIDATION', 'שם משתמש או סיסמה שגויים.', 'username');
+  const failure = new DomainError('BAD_CREDENTIALS', 'שם משתמש או סיסמה שגויים.', 'username');
 
   if (typeof username !== 'string' || typeof password !== 'string') throw failure;
 

@@ -300,36 +300,75 @@ export interface MissingCopy {
   readonly onLoanTo: string | null;
 }
 
+/** Which pile of the round a list is asking for. */
+export type RoundGroup = 'missing' | 'counted' | 'attention';
+
+/** A row of such a list. A counted book has a condition worth showing. */
+export interface RoundCopy extends MissingCopy {
+  readonly condition: ConditionStatus;
+}
+
 /**
- * What has not turned up yet.
+ * The books behind one of the numbers on the stocktake screen.
+ *
+ * Every tile up there is a count of something, and a count is the one thing a
+ * librarian cannot act on: 2,042 missing is a statement about the library,
+ * while a list of 2,042 shelf marks is an afternoon of work. The three piles
+ * come out of one query because they differ by a single clause — a list that
+ * disagrees with the tile above it would be worse than no list at all.
+ *
+ *  - `missing`   — expected on the shelf and not yet seen in this round
+ *  - `counted`   — seen in this round
+ *  - `attention` — seen in this round and marked damaged or needing repair
  *
  * A book out on loan is listed with the child's name rather than left to look
  * like a loss. Most of what a first count cannot find is sitting in a
  * schoolbag, and a list that does not say so sends somebody searching the
  * shelves for a book nobody could have found there.
  */
-export function listMissing(
+export function listRoundCopies(
   db: Db,
+  group: RoundGroup,
   options: { readonly limit?: number; readonly offset?: number } = {},
-): { items: MissingCopy[]; total: number } {
+): { items: RoundCopy[]; total: number } {
   const roundId = openRoundId(db);
   if (roundId === null) return { items: [], total: 0 };
 
   const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
   const offset = Math.max(options.offset ?? 0, 0);
 
+  // Counted and attention describe what this round has seen, so they are not
+  // narrowed to what was expected: a withdrawn copy that turns up on a shelf
+  // was still scanned, and leaving it out of the list it was counted in is
+  // how a number stops matching the books behind it.
+  const where =
+    group === 'missing'
+      ? {
+          count: `${EXPECTED} AND (verified_round_id IS NULL OR verified_round_id <> ?)`,
+          rows: `${EXPECTED_BC} AND (bc.verified_round_id IS NULL OR bc.verified_round_id <> ?)`,
+        }
+      : group === 'counted'
+        ? {
+            count: 'active = 1 AND verified_round_id = ?',
+            rows: 'bc.active = 1 AND bc.verified_round_id = ?',
+          }
+        : {
+            count:
+              "active = 1 AND verified_round_id = ? AND condition_status IN ('damaged', 'repair')",
+            rows:
+              "bc.active = 1 AND bc.verified_round_id = ? AND bc.condition_status IN ('damaged', 'repair')",
+          };
+
   const total = (
-    db
-      .prepare(
-        `SELECT COUNT(*) AS n FROM book_copies
-          WHERE ${EXPECTED} AND (verified_round_id IS NULL OR verified_round_id <> ?)`,
-      )
-      .get(roundId) as { n: number }
+    db.prepare(`SELECT COUNT(*) AS n FROM book_copies WHERE ${where.count}`).get(roundId) as {
+      n: number;
+    }
   ).n;
 
   const rows = db
     .prepare(
-      `SELECT bc.public_id, bc.barcode, b.title, b.author_text AS author,
+      `SELECT bc.public_id, bc.barcode, bc.condition_status AS condition,
+              b.title, b.author_text AS author,
               sl.name AS shelf_name, bc.verified_at AS last_seen,
               (SELECT s.first_name || ' ' || s.last_name
                  FROM loans l JOIN students s ON s.id = l.student_id
@@ -338,14 +377,14 @@ export function listMissing(
          FROM book_copies bc
          JOIN books b ON b.id = bc.book_id
          LEFT JOIN shelf_locations sl ON sl.id = bc.shelf_location_id
-        WHERE ${EXPECTED_BC}
-          AND (bc.verified_round_id IS NULL OR bc.verified_round_id <> ?)
+        WHERE ${where.rows}
         ORDER BY sl.name, b.title
         LIMIT ? OFFSET ?`,
     )
     .all(roundId, limit, offset) as Array<{
     public_id: string;
     barcode: string;
+    condition: ConditionStatus;
     title: string;
     author: string | null;
     shelf_name: string | null;
@@ -358,6 +397,7 @@ export function listMissing(
     items: rows.map((row) => ({
       publicId: row.public_id,
       barcode: row.barcode,
+      condition: row.condition,
       title: row.title,
       author: row.author,
       shelfName: row.shelf_name,
@@ -365,4 +405,15 @@ export function listMissing(
       onLoanTo: row.on_loan_to,
     })),
   };
+}
+
+/**
+ * What has not turned up yet — the case above that the screen asks for most,
+ * kept under the name the rest of the program already calls it by.
+ */
+export function listMissing(
+  db: Db,
+  options: { readonly limit?: number; readonly offset?: number } = {},
+): { items: MissingCopy[]; total: number } {
+  return listRoundCopies(db, 'missing', options);
 }

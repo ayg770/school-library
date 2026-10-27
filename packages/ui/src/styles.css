@@ -472,6 +472,53 @@ h3 {
   margin-top: var(--gap-1);
 }
 
+/* ---------------------------------------------------------------------------
+   A number you can press.
+
+   Every count on the stocktake screen has a list behind it, and a count that
+   cannot be opened is a count somebody copies onto paper and then goes
+   looking for by hand. These are buttons, so they say so: a hand, a hover,
+   and the area's colour down the leading edge while their list is open.
+   --------------------------------------------------------------------------- */
+
+.tile-open {
+  width: 100%;
+  text-align: start;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+
+.tile-open:hover:not(:disabled) {
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+.tile-open:active:not(:disabled) { transform: translateY(1px); }
+.tile-open:disabled { cursor: default; }
+
+.tile-open:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tile-current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.tile-current::after {
+  content: '';
+  position: absolute;
+  inset-inline: var(--gap-4);
+  bottom: -1px;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+
 .tile-ok .value { color: var(--ok); }
 .tile-warn .value { color: var(--warn); }
 .tile-error .value { color: var(--error); }
@@ -1119,6 +1166,78 @@ table.data td.sample {
   text-align: center;
   margin-bottom: var(--gap-5);
 }
+
+/* The list of names needs room to put three or four across; the code form
+   does not, and a wide card around a single field looks like a mistake. */
+.auth-card-wide {
+  max-width: 46rem;
+}
+
+/* ---------------------------------------------------------------------------
+   Who is at the desk.
+
+   The names are the first thing anyone touches in the morning, and the person
+   touching them is often nine. Big targets, the name large enough to read
+   from standing, the role underneath in case two children share a first name.
+   --------------------------------------------------------------------------- */
+
+.people {
+  list-style: none;
+  margin: 0 0 var(--gap-4);
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--gap-3);
+}
+
+.people button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: var(--gap-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 120ms ease;
+}
+
+.people button:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.people button:active { transform: translateY(1px); }
+
+.people button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.person-name { font-size: 1.25rem; font-weight: 600; color: var(--text); }
+.person-role { font-size: 0.85rem; color: var(--text-muted); }
+
+/* The name that was picked, above the code field. */
+.chosen-person {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-4);
+  margin-bottom: var(--gap-4);
+  padding: var(--gap-3) var(--gap-4);
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface-sunken);
+}
+
+.chosen-person .person-name { display: block; }
+.chosen-person .person-role { display: block; }
 
 .auth-card .brand h1 {
   font-size: 1.25rem;
