@@ -88,7 +88,7 @@ export function LoginScreen({ setupRequired, onSignedIn }: LoginScreenProps): JS
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
-              dir="ltr"
+              dir="auto"
             />
           </Field>
 

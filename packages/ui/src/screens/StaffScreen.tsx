@@ -93,13 +93,16 @@ export function StaffScreen({ currentUser }: StaffScreenProps): JSX.Element {
                 />
               </Field>
               <Field label="שם משתמש" htmlFor="new-username">
+                {/* auto, not ltr: a Hebrew name in a field forced to ltr has
+                    its punctuation thrown to the wrong end. */}
                 <input
                   id="new-username"
                   type="text"
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  dir="ltr"
+                  dir="auto"
                 />
+                <p className="hint">בעברית או באנגלית, בלי רווחים. זה מה שהוא יקליד בכניסה.</p>
               </Field>
             </div>
 
@@ -112,6 +115,7 @@ export function StaffScreen({ currentUser }: StaffScreenProps): JSX.Element {
                   onChange={(event) => setPassword(event.target.value)}
                   dir="ltr"
                 />
+                <p className="hint">לפחות 8 תווים. ספרות בלבד זה בסדר.</p>
               </Field>
               <Field label="הרשאה" htmlFor="new-role">
                 <select id="new-role" value={role} onChange={(event) => setRole(event.target.value as Role)}>
@@ -162,6 +166,7 @@ export function StaffScreen({ currentUser }: StaffScreenProps): JSX.Element {
                 dir="ltr"
                 autoFocus
               />
+              <p className="hint">לפחות 8 תווים. ספרות בלבד זה בסדר.</p>
             </Field>
             <div className="form-actions">
               <button type="submit" className="btn btn-primary" disabled={busy}>
