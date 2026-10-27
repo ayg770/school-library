@@ -400,6 +400,18 @@ export function revokeAllSessionsFor(db: Db, userPublicId: string): void {
   ).run(userPublicId);
 }
 
+/**
+ * Signs everyone out, everywhere.
+ *
+ * Used when the computer is left alone — Windows locked, or the program
+ * closed — so that coming back needs a code. It is deliberately not a route:
+ * it is called by the desktop shell at the moment the machine is locked, when
+ * there is no request and nobody to authorise it.
+ */
+export function revokeAllSessions(db: Db): number {
+  return db.prepare('DELETE FROM staff_sessions').run().changes;
+}
+
 /** Removes sessions that have already expired. Called at startup. */
 export function purgeExpiredSessions(db: Db): number {
   const result = db.prepare('DELETE FROM staff_sessions WHERE expires_at < ?').run(nowIso());

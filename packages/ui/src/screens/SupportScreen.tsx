@@ -10,7 +10,7 @@ import { useServiceStatus } from '../useServiceStatus.js';
  * computer without a developer present: which version is running, which schema
  * the database is at, where the data lives, and whether the service answers.
  */
-export function SupportScreen(): JSX.Element {
+export function SupportScreen({ isAdmin }: { readonly isAdmin: boolean }): JSX.Element {
   const { service, online } = useServiceStatus();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -22,6 +22,9 @@ export function SupportScreen(): JSX.Element {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [passwordProblem, setPasswordProblem] = useState<string | null>(null);
   const [passwordDone, setPasswordDone] = useState(false);
+
+  const [lockBusy, setLockBusy] = useState(false);
+  const [lockProblem, setLockProblem] = useState<string | null>(null);
 
   /**
    * An administrator gives a new librarian a first password; this is where the
@@ -42,6 +45,26 @@ export function SupportScreen(): JSX.Element {
       setPasswordProblem(cause instanceof ApiError ? cause.message : 'שינוי הסיסמה נכשל.');
     } finally {
       setPasswordBusy(false);
+    }
+  }
+
+  /**
+   * Turns the automatic lock on or off.
+   *
+   * The screen holds the whole system-info object, so the reply's settings
+   * are folded back into it rather than the switch keeping a copy that could
+   * drift from what the service actually stored.
+   */
+  async function setLock(value: boolean): Promise<void> {
+    setLockBusy(true);
+    setLockProblem(null);
+    try {
+      const reply = await api.updateSettings({ lockWhenUnattended: value });
+      setInfo((current) => (current === null ? current : { ...current, settings: reply.settings }));
+    } catch (cause) {
+      setLockProblem(cause instanceof ApiError ? cause.message : 'שמירת ההגדרה נכשלה.');
+    } finally {
+      setLockBusy(false);
     }
   }
 
@@ -240,6 +263,37 @@ export function SupportScreen(): JSX.Element {
               <dt>לוגים</dt>
               <dd className="value-ltr">{info.paths.logs}</dd>
             </dl>
+          </section>
+
+          {/* The one setting that is a decision about the room this computer
+              stands in rather than about how the library lends books. */}
+          <section className="card">
+            <h2>נעילה אוטומטית</h2>
+            <p className="hint" style={{ marginTop: 0 }}>
+              המחשב עומד במקום שילדים עוברים בו, והכניסה נשמרת שבועיים. כשההגדרה הזו דולקת,
+              נעילת Windows או סגירת התוכנה מנתקת את כולם — והבא בתור מקליד את הקוד שלו.
+            </p>
+
+            {lockProblem !== null && <Notice kind="error">{lockProblem}</Notice>}
+
+            <div className="checkbox-field">
+              <input
+                id="lock-when-unattended"
+                type="checkbox"
+                checked={info.settings.lock_when_unattended}
+                disabled={!isAdmin || lockBusy}
+                onChange={(event) => void setLock(event.target.checked)}
+              />
+              <label htmlFor="lock-when-unattended">
+                נעל את התוכנה בנעילת Windows ובסגירתה
+              </label>
+            </div>
+
+            <p className="hint" style={{ marginBottom: 0 }}>
+              {isAdmin
+                ? 'הנעילה בסגירה נאכפת בפתיחה הבאה — מחשב שכובה מהחשמל לא מספיק להריץ שום דבר בדרך החוצה.'
+                : 'רק מנהל מערכת יכול לשנות את ההגדרה הזו.'}
+            </p>
           </section>
 
           <section className="card">

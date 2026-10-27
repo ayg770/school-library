@@ -22,6 +22,7 @@ export interface SystemInfo {
     lan_enabled: boolean;
     backup_retention_count: number;
     automatic_backup_enabled: boolean;
+    lock_when_unattended: boolean;
   };
 }
 
@@ -484,6 +485,13 @@ export const api = {
     request<HealthStatus>('/api/v1/health', signal ? { signal } : undefined),
   systemInfo: (signal?: AbortSignal) =>
     request<SystemInfo>('/api/v1/system/info', signal ? { signal } : undefined),
+
+  /** Administrators only; the service refuses it for anyone else. */
+  updateSettings: (body: { lockWhenUnattended?: boolean }) =>
+    request<{ settings: SystemInfo['settings'] }>('/api/v1/system/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 
   checkForUpdate: () => request<UpdateStatus>('/api/v1/system/update'),
 

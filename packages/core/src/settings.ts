@@ -12,6 +12,16 @@ export interface AppSettings {
   readonly lan_enabled: boolean;
   readonly backup_retention_count: number;
   readonly automatic_backup_enabled: boolean;
+  /**
+   * Sign everyone out when the computer is left alone.
+   *
+   * The library computer stands in a room children walk through, and a
+   * session lasts a fortnight, so closing the program and opening it again
+   * used to come straight back to whoever was signed in last — including an
+   * administrator. With this on, locking Windows or closing the program ends
+   * the session, and the next person types their code.
+   */
+  readonly lock_when_unattended: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -23,6 +33,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   lan_enabled: false,
   backup_retention_count: 10,
   automatic_backup_enabled: true,
+  // On by default, including for a library upgrading into it: a shared
+  // computer that stays signed in is the state worth changing.
+  lock_when_unattended: true,
 };
 
 const SETTING_KEYS = Object.keys(DEFAULT_SETTINGS) as Array<keyof AppSettings>;

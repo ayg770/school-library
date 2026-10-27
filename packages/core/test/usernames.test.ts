@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   createStaffUser,
+  ensureDefaultSettings,
   migrations,
   openDatabase,
+  readSettings,
+  resolveSession,
+  revokeAllSessions,
   runMigrations,
   signIn,
   type Db,
@@ -68,5 +72,54 @@ describe('a staff username', () => {
 
   it('refuses nikud, which cannot be reproduced at the sign-in screen', () => {
     expect(() => createStaffUser(db, account('מֶנדי'))).toThrow(/שם המשתמש/);
+  });
+});
+
+/**
+ * Being left alone.
+ *
+ * The library computer stands where children walk past it, and a session
+ * lasts a fortnight. Locking Windows or closing the program has to end every
+ * session on the machine — not only the one in the window that happens to be
+ * open — or the next person to sit down is still signed in as the last one.
+ */
+describe('signing everyone out', () => {
+  let db: Db;
+
+  beforeEach(() => {
+    db = openDatabase({ file: ':memory:' });
+    runMigrations(db, migrations);
+  });
+
+  afterEach(() => {
+    db.close();
+  });
+
+  it('ends every session, not only the one that asked', () => {
+    createStaffUser(db, { username: 'first', password: '12345678', displayName: 'ראשון' });
+    createStaffUser(db, { username: 'second', password: '87654321', displayName: 'שני' });
+
+    const one = signIn(db, 'first', '12345678');
+    const two = signIn(db, 'second', '87654321');
+
+    expect(revokeAllSessions(db)).toBe(2);
+
+    expect(resolveSession(db, one.token)).toBeNull();
+    expect(resolveSession(db, two.token)).toBeNull();
+  });
+
+  it('leaves the accounts themselves alone — it is a lock, not a dismissal', () => {
+    createStaffUser(db, { username: 'first', password: '12345678', displayName: 'ראשון' });
+    signIn(db, 'first', '12345678');
+
+    revokeAllSessions(db);
+
+    expect(signIn(db, 'first', '12345678').user.username).toBe('first');
+  });
+
+  it('is on by default, including for a library that upgrades into it', () => {
+    ensureDefaultSettings(db);
+
+    expect(readSettings(db).lock_when_unattended).toBe(true);
   });
 });

@@ -74,6 +74,31 @@ describe('sign-in and access control', () => {
       expect(names.map((item) => item.displayName)).toEqual([first!.displayName]);
     });
 
+    it('lets only an administrator decide whether the computer stays signed in', async () => {
+      const librarian = await createTestApp('librarian');
+      try {
+        const refused = await librarian.app.inject({
+          method: 'PATCH',
+          url: '/api/v1/system/settings',
+          headers: { cookie: librarian.cookie },
+          payload: { lockWhenUnattended: false },
+        });
+        expect(refused.statusCode).toBe(403);
+      } finally {
+        await librarian.close();
+      }
+
+      const allowed = await harness.patch('/api/v1/system/settings', {
+        lockWhenUnattended: false,
+      });
+
+      expect(allowed.statusCode).toBe(200);
+      expect(
+        (allowed.json() as { settings: { lock_when_unattended: boolean } }).settings
+          .lock_when_unattended,
+      ).toBe(false);
+    });
+
     it('refuses a made-up cookie', async () => {
       const response = await harness.app.inject({
         method: 'GET',

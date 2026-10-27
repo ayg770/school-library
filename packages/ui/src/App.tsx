@@ -228,7 +228,7 @@ export function App(): JSX.Element {
           <StocktakeScreen isAdmin={user.role === 'admin'} onGo={go} />
         )}
         {current === 'sync' && <SyncScreen isAdmin={user.role === 'admin'} />}
-        {current === 'support' && <SupportScreen />}
+        {current === 'support' && <SupportScreen isAdmin={user.role === 'admin'} />}
       </main>
     </div>
   );

@@ -217,6 +217,7 @@ export {
   needsFirstUser,
   purgeExpiredSessions,
   resolveSession,
+  revokeAllSessions,
   revokeAllSessionsFor,
   roleAllows,
   signIn,
