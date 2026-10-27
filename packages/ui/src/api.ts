@@ -22,6 +22,7 @@ export interface SystemInfo {
     lan_enabled: boolean;
     backup_retention_count: number;
     automatic_backup_enabled: boolean;
+    lock_when_unattended: boolean;
   };
 }
 
@@ -74,6 +75,57 @@ export interface MissingCopy {
   lastSeen: string | null;
   onLoanTo: string | null;
 }
+
+/** Which pile of the round a list is asking for. */
+export type RoundGroup = 'missing' | 'counted' | 'attention';
+
+/** A row of such a list; a counted book carries the condition it was in. */
+export interface RoundCopy extends MissingCopy {
+  condition: ConditionStatus;
+}
+
+/** What a librarian has done, and the rank the library gives it. */
+export type CountedAction =
+  | 'copy.counted'
+  | 'loan.checked_out'
+  | 'loan.returned'
+  | 'copy.added'
+  | 'report.filed';
+
+export interface Rank {
+  level: number;
+  title: string;
+  emoji: string;
+  from: number;
+}
+
+export interface StaffProgress {
+  userPublicId: string;
+  username: string;
+  displayName: string;
+  counts: Record<CountedAction, number>;
+  total: number;
+  rank: Rank;
+  nextRank: Rank | null;
+  toNextRank: number;
+  lastActiveAt: string | null;
+}
+
+export const ACTION_LABELS: Record<CountedAction, string> = {
+  'copy.counted': 'ספרים שנספרו',
+  'loan.checked_out': 'השאלות',
+  'loan.returned': 'החזרות',
+  'copy.added': 'ספרים חדשים שנקלטו',
+  'report.filed': 'אי-התאמות שדווחו',
+};
+
+export const ACTION_EMOJI: Record<CountedAction, string> = {
+  'copy.counted': '📊',
+  'loan.checked_out': '📕',
+  'loan.returned': '↩️',
+  'copy.added': '📥',
+  'report.filed': '❓',
+};
 
 export interface SyncStatus {
   connected: boolean;
@@ -321,6 +373,13 @@ export interface StaffUser {
   active: boolean;
 }
 
+/** A name offered on the sign-in screen. No account details beyond these. */
+export interface SignInName {
+  username: string;
+  displayName: string;
+  role: Role;
+}
+
 export interface SessionState {
   user: StaffUser | null;
   setupRequired: boolean;
@@ -451,6 +510,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ username, password }),
     }),
+  signInNames: () => request<{ items: SignInName[] }>('/api/v1/auth/people'),
   logout: () => request<void>('/api/v1/auth/logout', { method: 'POST' }),
   setup: (body: { username: string; password: string; displayName: string }) =>
     request<{ user: StaffUser }>('/api/v1/auth/setup', {
@@ -468,6 +528,15 @@ export const api = {
     request<HealthStatus>('/api/v1/health', signal ? { signal } : undefined),
   systemInfo: (signal?: AbortSignal) =>
     request<SystemInfo>('/api/v1/system/info', signal ? { signal } : undefined),
+
+  /** Administrators only; the service refuses it for anyone else. */
+  updateSettings: (body: { lockWhenUnattended?: boolean }) =>
+    request<{ settings: SystemInfo['settings'] }>('/api/v1/system/settings', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+
+  progress: () => request<{ items: StaffProgress[] }>('/api/v1/progress'),
 
   checkForUpdate: () => request<UpdateStatus>('/api/v1/system/update'),
 
@@ -605,6 +674,12 @@ export const api = {
     }),
   missingCopies: (limit = 200) =>
     request<{ items: MissingCopy[]; total: number }>(`/api/v1/stocktake/missing?limit=${limit}`),
+
+  /** The books behind one of the numbers on the stocktake screen. */
+  roundCopies: (group: RoundGroup, limit = 500) =>
+    request<{ items: RoundCopy[]; total: number }>(
+      `/api/v1/stocktake/copies?group=${group}&limit=${limit}`,
+    ),
 
   /** "This is not that book" — one press from the desk. */
   reportMismatch: (barcode: string, body: { actualTitle?: string; note?: string } = {}) =>

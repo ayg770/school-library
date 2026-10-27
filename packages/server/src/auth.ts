@@ -29,6 +29,7 @@ export const SESSION_COOKIE = 'library_session';
 const PUBLIC_ROUTES = new Set([
   'GET /api/v1/health',
   'GET /api/v1/auth/session',
+  'GET /api/v1/auth/people',
   'POST /api/v1/auth/login',
   'POST /api/v1/auth/logout',
   'POST /api/v1/auth/setup',
@@ -40,6 +41,9 @@ const PUBLIC_ROUTES = new Set([
  */
 function isAdminOnly(method: string, path: string): boolean {
   if (path.startsWith('/api/v1/staff')) return true;
+  // Whether this computer stays signed in is a decision about the room, not
+  // about today's shift.
+  if (path.startsWith('/api/v1/system/settings') && method !== 'GET') return true;
   if (path.startsWith('/api/v1/backups') && method !== 'GET') return true;
   // Deciding which online library this computer belongs to is a decision about
   // the whole institution, not about today's shift. Running an exchange is not:

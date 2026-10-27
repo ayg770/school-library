@@ -5,6 +5,10 @@
 export type DomainErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION'
+  // Sign-in. Its own code, because the screen can say something kinder when
+  // the name was picked from a list rather than typed: only the code can be
+  // wrong, so only the code is mentioned.
+  | 'BAD_CREDENTIALS'
   | 'DUPLICATE_BARCODE'
   | 'DUPLICATE_VALUE'
   | 'REFERENCE_NOT_FOUND'
@@ -21,6 +25,7 @@ export type DomainErrorCode =
 const STATUS_BY_CODE: Record<DomainErrorCode, number> = {
   NOT_FOUND: 404,
   VALIDATION: 400,
+  BAD_CREDENTIALS: 400,
   DUPLICATE_BARCODE: 409,
   DUPLICATE_VALUE: 409,
   REFERENCE_NOT_FOUND: 400,

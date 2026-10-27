@@ -124,7 +124,11 @@ export function registerBookRoutes(app: FastifyInstance, context: AppContext): v
    */
   app.post('/api/v1/intake', async (request, reply) => {
     const body = parseInput(intakeBody, request.body, 'קליטת ספר');
-    return reply.code(201).send(intakeCopy(context.db, body));
+    return reply
+      .code(201)
+      .send(
+        intakeCopy(context.db, { ...body, userPublicId: request.staffUser?.publicId ?? null }),
+      );
   });
 
   app.get('/api/v1/copies', async (request, reply) => {

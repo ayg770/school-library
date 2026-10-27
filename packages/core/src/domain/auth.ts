@@ -77,12 +77,43 @@ function mapUser(row: UserRow): StaffUser {
   };
 }
 
+/**
+ * Characters that are not there.
+ *
+ * A Hebrew name copied out of a document or typed on a phone can arrive
+ * carrying a direction mark or a zero-width space. They are invisible in the
+ * field, so a name that looks exactly right would be stored as something
+ * nobody can ever type again, and the librarian would be locked out of an
+ * account they had just created. They are removed rather than rejected.
+ */
+const INVISIBLE = /[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/gu;
+
+/**
+ * Hebrew letters, English letters, digits, and three marks.
+ *
+ * The range covers the final forms as well, since they are letters of their
+ * own and a child whose name ends in one would otherwise be turned away.
+ */
+const USERNAME_ALLOWED = /^[a-z0-9\u05D0-\u05EA._-]+$/u;
+
+/**
+ * The one spelling of a username.
+ *
+ * Signing in has to reach the same string that creating the account stored,
+ * so both go through here. Hebrew has no capitals, so lowercasing only
+ * affects the English half; NFC settles the cases where the same Hebrew word
+ * can be composed in more than one way.
+ */
+export function normaliseUsername(value: string): string {
+  return value.trim().normalize('NFC').replace(INVISIBLE, '').toLowerCase();
+}
+
 function requireUsername(value: unknown): string {
-  const username = requireText(value, 'username', 'שם משתמש', 60).toLowerCase();
-  if (!/^[a-z0-9._-]+$/.test(username)) {
+  const username = normaliseUsername(requireText(value, 'username', 'שם משתמש', 60));
+  if (!USERNAME_ALLOWED.test(username)) {
     throw new DomainError(
       'VALIDATION',
-      'שם המשתמש יכול להכיל אותיות באנגלית, ספרות, נקודה, מקף וקו תחתון בלבד.',
+      'שם המשתמש יכול להכיל אותיות בעברית או באנגלית, ספרות, נקודה, מקף וקו תחתון — בלי רווחים ובלי ניקוד.',
       'username',
     );
   }
@@ -147,6 +178,41 @@ export function getStaffUser(db: Db, publicId: string): StaffUser {
     | undefined;
   if (row === undefined) throw notFound('המשתמש');
   return mapUser(row);
+}
+
+/** A name on the sign-in screen: enough to pick, and nothing more. */
+export interface SignInName {
+  readonly username: string;
+  readonly displayName: string;
+  readonly role: Role;
+}
+
+/**
+ * Who may sign in at this computer.
+ *
+ * The sign-in screen offers the names instead of asking for one to be typed:
+ * the volunteers are children, and a name typed wrong is indistinguishable
+ * from a password typed wrong. That means the list is readable before anyone
+ * has signed in, which is a deliberate trade. On a library computer the
+ * people who can reach this screen are the people standing in the room, and
+ * the names are already written on the rota by the door; a password is still
+ * required, and a locked account is not offered at all.
+ *
+ * It returns the three fields the screen draws with. The row carries a
+ * password hash, so it never leaves this function.
+ */
+export function listSignInNames(db: Db): SignInName[] {
+  const rows = db
+    .prepare(
+      'SELECT username, display_name, role FROM staff_users WHERE active = 1 ORDER BY display_name',
+    )
+    .all() as { username: string; display_name: string; role: Role }[];
+
+  return rows.map((row) => ({
+    username: row.username,
+    displayName: row.display_name,
+    role: row.role,
+  }));
 }
 
 export function listStaffUsers(db: Db): StaffUser[] {
@@ -263,13 +329,13 @@ function hashToken(token: string): string {
  * accounts exist.
  */
 export function signIn(db: Db, username: unknown, password: unknown): Session {
-  const failure = new DomainError('VALIDATION', 'שם משתמש או סיסמה שגויים.', 'username');
+  const failure = new DomainError('BAD_CREDENTIALS', 'שם משתמש או סיסמה שגויים.', 'username');
 
   if (typeof username !== 'string' || typeof password !== 'string') throw failure;
 
-  const row = db.prepare('SELECT * FROM staff_users WHERE username = ?').get(username.trim().toLowerCase()) as
-    | UserRow
-    | undefined;
+  const row = db
+    .prepare('SELECT * FROM staff_users WHERE username = ?')
+    .get(normaliseUsername(username)) as UserRow | undefined;
 
   // Hash anyway when the user does not exist, so the reply takes a similar time.
   const storedHash = row?.password_hash ?? hashPassword('placeholder-for-timing');
@@ -332,6 +398,39 @@ export function revokeAllSessionsFor(db: Db, userPublicId: string): void {
   db.prepare(
     'DELETE FROM staff_sessions WHERE user_id = (SELECT id FROM staff_users WHERE public_id = ?)',
   ).run(userPublicId);
+}
+
+/**
+ * The row id behind a staff account's public id.
+ *
+ * Public ids are what the outside world passes around; the tables reference
+ * rows. This sits here so every part of the domain that records who did
+ * something resolves it the same way, and so an id that does not exist is
+ * refused with a sentence rather than by a foreign key.
+ */
+export function staffRowId(db: Db, publicId: string | null | undefined): number | null {
+  if (publicId === null || publicId === undefined || publicId === '') return null;
+
+  const row = db.prepare('SELECT id FROM staff_users WHERE public_id = ?').get(publicId) as
+    | { id: number }
+    | undefined;
+
+  if (row === undefined) {
+    throw new DomainError('REFERENCE_NOT_FOUND', 'המשתמש שנבחר לא נמצא.', 'userPublicId');
+  }
+  return row.id;
+}
+
+/**
+ * Signs everyone out, everywhere.
+ *
+ * Used when the computer is left alone — Windows locked, or the program
+ * closed — so that coming back needs a code. It is deliberately not a route:
+ * it is called by the desktop shell at the moment the machine is locked, when
+ * there is no request and nobody to authorise it.
+ */
+export function revokeAllSessions(db: Db): number {
+  return db.prepare('DELETE FROM staff_sessions').run().changes;
 }
 
 /** Removes sessions that have already expired. Called at startup. */

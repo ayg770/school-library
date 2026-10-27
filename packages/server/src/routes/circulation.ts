@@ -6,6 +6,7 @@ import {
   getStudentLibrarySummary,
   listLoans,
   renewLoan,
+  staffRowId,
   type AppContext,
 } from '@school-library/core';
 import { z } from 'zod';
@@ -43,24 +44,32 @@ const params = z.object({ publicId: z.string().min(1) });
  * waits on the network, because a green result must mean the loan is committed
  * on this machine and nothing further is required (§22, §23).
  *
- * There is no authenticated user yet, so `checkout_by_user_id` is left null.
- * Once staff sign in, the identity is threaded through from the request rather
- * than changing any of this logic.
+ * Every loan carries the member of staff who handled it. The librarian asked
+ * for that: with volunteers taking turns at the desk, "who lent this" is a
+ * question that gets asked, and a row that cannot answer it is a row that
+ * blames nobody and credits nobody.
  */
 export function registerCirculationRoutes(app: FastifyInstance, context: AppContext): void {
+  /** The signed-in member of staff, as the row id the tables reference. */
+  const actor = (request: { staffUser?: { publicId: string } | null }): number | null =>
+    staffRowId(context.db, request.staffUser?.publicId ?? null);
+
   app.post('/api/v1/circulation/checkout', async (request, reply) => {
     const body = parseInput(checkoutBody, request.body, 'השאלה');
-    return reply.code(201).send(checkoutCopy(context.db, body));
+    return reply.code(201).send(checkoutCopy(context.db, { ...body, staffUserId: actor(request) }));
   });
 
   app.post('/api/v1/circulation/checkin', async (request, reply) => {
     const { barcode } = parseInput(checkinBody, request.body, 'החזרה');
-    return reply.send(checkinByBarcode(context.db, barcode));
+    return reply.send(checkinByBarcode(context.db, barcode, actor(request)));
   });
 
   app.post('/api/v1/circulation/renew', async (request, reply) => {
     const body = parseInput(renewBody, request.body, 'הארכה');
-    const options = body.extraDays === undefined ? {} : { extraDays: body.extraDays };
+    const options = {
+      ...(body.extraDays === undefined ? {} : { extraDays: body.extraDays }),
+      staffUserId: actor(request),
+    };
     return reply.send(renewLoan(context.db, body.loanPublicId, options));
   });
 

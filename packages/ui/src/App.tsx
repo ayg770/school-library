@@ -9,6 +9,7 @@ import { ImportScreen } from './screens/ImportScreen.js';
 import { IntakeScreen } from './screens/IntakeScreen.js';
 import { LoansScreen } from './screens/LoansScreen.js';
 import { LoginScreen } from './screens/LoginScreen.js';
+import { ProgressScreen } from './screens/ProgressScreen.js';
 import { ReturnScreen } from './screens/ReturnScreen.js';
 import { StaffScreen } from './screens/StaffScreen.js';
 import { StudentsScreen } from './screens/StudentsScreen.js';
@@ -31,7 +32,8 @@ type ScreenId =
   | 'staff'
   | 'support'
   | 'sync'
-  | 'stocktake';
+  | 'stocktake'
+  | 'progress';
 
 interface ScreenDefinition {
   readonly id: ScreenId;
@@ -58,6 +60,7 @@ const NAV: readonly NavGroup[] = [
       { id: 'checkout', label: '🔄 השאלה', role: 'librarian' },
       { id: 'return', label: '↩️ החזרה', role: 'librarian' },
       { id: 'loans', label: '📋 השאלות', role: 'read_only' },
+      { id: 'progress', label: '🏅 ההתקדמות שלנו', role: 'read_only' },
     ],
   },
   {
@@ -95,6 +98,7 @@ const AREA: Record<ScreenId, string> = {
   checkout: 'lend',
   return: 'lend',
   loans: 'lend',
+  progress: 'pupil',
   intake: 'intake',
   books: 'intake',
   setup: 'intake',
@@ -217,6 +221,7 @@ export function App(): JSX.Element {
         {current === 'checkout' && <CheckoutScreen />}
         {current === 'return' && <ReturnScreen />}
         {current === 'loans' && <LoansScreen />}
+        {current === 'progress' && <ProgressScreen username={user.username} />}
         {current === 'intake' && <IntakeScreen startingBarcode={handover} />}
         {current === 'books' && <BooksScreen />}
         {current === 'students' && <StudentsScreen />}
@@ -228,7 +233,7 @@ export function App(): JSX.Element {
           <StocktakeScreen isAdmin={user.role === 'admin'} onGo={go} />
         )}
         {current === 'sync' && <SyncScreen isAdmin={user.role === 'admin'} />}
-        {current === 'support' && <SupportScreen />}
+        {current === 'support' && <SupportScreen isAdmin={user.role === 'admin'} />}
       </main>
     </div>
   );

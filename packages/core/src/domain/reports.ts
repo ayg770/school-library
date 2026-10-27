@@ -3,6 +3,8 @@ import { newPublicId } from '../ids.js';
 import { nowIso, optionalText, requireText } from './common.js';
 import { findCopyByBarcode } from './copies.js';
 import { DomainError, notFound } from './errors.js';
+import { staffRowId } from './auth.js';
+import { recordAudit } from './audit.js';
 
 /**
  * "This is not that book."
@@ -103,14 +105,7 @@ export function reportMismatch(db: Db, input: ReportInput): CatalogueReport {
   const copy = findCopyByBarcode(db, barcode);
   const timestamp = nowIso();
 
-  const userId =
-    input.userPublicId === null || input.userPublicId === undefined || input.userPublicId === ''
-      ? null
-      : (
-          db.prepare('SELECT id FROM staff_users WHERE public_id = ?').get(input.userPublicId) as
-            | { id: number }
-            | undefined
-        )?.id ?? null;
+  const userId = staffRowId(db, input.userPublicId);
 
   const open = db
     .prepare('SELECT public_id FROM catalogue_reports WHERE barcode = ? AND resolved_at IS NULL')
@@ -151,6 +146,18 @@ export function reportMismatch(db: Db, input: ReportInput): CatalogueReport {
     timestamp,
     timestamp,
   );
+
+  // Noticing that a label and the catalogue disagree is work, and it is the
+  // kind that leaves nothing behind on the shelf to show for it.
+  if (userId !== null) {
+    recordAudit(db, {
+      action: 'report.filed',
+      entityType: 'catalogue_report',
+      entityId: publicId,
+      userId,
+      newData: { barcode, kind },
+    });
+  }
 
   return getReport(db, publicId);
 }

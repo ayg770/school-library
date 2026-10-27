@@ -1,10 +1,12 @@
 import path from 'node:path';
-import { app, BrowserWindow, Menu, dialog, net, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, net, powerMonitor, shell } from 'electron';
 import {
   APP_VERSION,
   createAppContext,
   createLogger,
+  readSettings,
   resolveAppPaths,
+  revokeAllSessions,
   useNetworkTransport,
   type AppContext,
   type Logger,
@@ -103,6 +105,48 @@ async function startService(logger: Logger): Promise<string> {
   );
 
   return `http://127.0.0.1:${address.port}/`;
+}
+
+/**
+ * Signs everyone out when the computer is left alone.
+ *
+ * The library computer stands where children walk past it, and a session
+ * lasts a fortnight: without this, closing the program and opening it again
+ * comes straight back to whoever was signed in last. Windows locking and the
+ * program closing are the two moments the person has gone, so both end the
+ * session and the next person types their code.
+ *
+ * Closing is handled at the next start rather than on the way out, because a
+ * program being killed is not a moment to rely on: a machine switched off at
+ * the wall never runs its shutdown code, and that is exactly the night the
+ * session would have been worth ending.
+ *
+ * It needs no route and no window. The service runs in this process, so this
+ * reaches the database directly, which is also why it works when the screen
+ * is locked and nothing is being asked of the service at all.
+ */
+function lockWhenUnattended(): boolean {
+  return context !== null && readSettings(context.db).lock_when_unattended;
+}
+
+function endEverySession(logger: Logger, reason: string): void {
+  if (context === null || !lockWhenUnattended()) return;
+
+  const ended = revokeAllSessions(context.db);
+  logger.info({ reason, ended }, 'Signed everyone out');
+
+  // Reloading is how the open window finds out: the renderer has no bridge to
+  // this process by design (AD-2), and its next request is refused anyway, so
+  // it may as well land on the sign-in screen rather than on an error.
+  if (mainWindow !== null && !mainWindow.isDestroyed()) mainWindow.webContents.reload();
+}
+
+function watchForBeingLeftAlone(logger: Logger): void {
+  // 'lock-screen' is Windows locking. 'suspend' is the lid closing or the
+  // machine sleeping, which is the same thing for this purpose and is what
+  // actually fires on some machines where the lock event does not.
+  powerMonitor.on('lock-screen', () => endEverySession(logger, 'lock-screen'));
+  powerMonitor.on('suspend', () => endEverySession(logger, 'suspend'));
 }
 
 function createWindow(url: string): BrowserWindow {
@@ -278,6 +322,13 @@ if (!app.requestSingleInstanceLock()) {
 
       try {
         serviceUrl = await startService(logger);
+
+        // The program was closed with somebody signed in, and this is the
+        // next time it opened: that is the lock on closing, applied at the
+        // only moment it can be relied on.
+        endEverySession(logger, 'startup');
+        watchForBeingLeftAlone(logger);
+
         buildMenu();
         mainWindow = createWindow(serviceUrl);
       } catch (error) {

@@ -3,6 +3,8 @@ import { createBook, getBook, listBooks, type Book } from './books.js';
 import { requireBarcode, requireText, optionalText } from './common.js';
 import { createCopy, findCopyByBarcode, type BookCopy } from './copies.js';
 import { DomainError } from './errors.js';
+import { staffRowId } from './auth.js';
+import { recordAudit } from './audit.js';
 
 /**
  * Adding one physical book, in a single step.
@@ -23,6 +25,8 @@ export interface IntakeInput {
   readonly isbn13?: unknown;
   readonly categoryPublicId?: unknown;
   readonly shelfPublicId?: unknown;
+  /** Who was holding the scanner, by the id the outside world uses. */
+  readonly userPublicId?: string | null;
 }
 
 export interface IntakeResult {
@@ -95,9 +99,21 @@ export function intakeCopy(db: Db, input: IntakeInput): IntakeResult {
 
   // One transaction: a copy without its title, or a title without its copy,
   // would both be wrong.
+  const userId = staffRowId(db, input.userPublicId);
+
   const commit = db.transaction(() => {
     const { book, created } = findOrCreateBook(db, { title, author, isbn, categoryPublicId });
     const copy = createCopy(db, { bookPublicId: book.publicId, barcode, shelfPublicId });
+
+    if (userId !== null) {
+      recordAudit(db, {
+        action: 'copy.added',
+        entityType: 'copy',
+        entityId: copy.publicId,
+        userId,
+        newData: { barcode, title: book.title, createdTitle: created },
+      });
+    }
 
     // Re-read the title: `copyCount` was counted before this copy existed, and
     // the screen reports it back to the librarian as "now N copies".
