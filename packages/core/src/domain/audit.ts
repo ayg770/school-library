@@ -7,12 +7,22 @@ import { nowIso } from './common.js';
  *
  * Every circulation event is written here inside the same transaction as the
  * change it describes, so the log cannot disagree with the data (§23).
+ *
+ * It is also the only place that remembers *who* did a piece of work after
+ * the work itself has moved on. A copy carries the round it was last counted
+ * in and by whom, and both are overwritten by the next round; a loan that is
+ * returned and lent again keeps only the latest hands. The log keeps every
+ * one of them, which is what lets the library tell a volunteer what they have
+ * done since the day they started.
  */
 export type AuditAction =
   | 'loan.checked_out'
   | 'loan.returned'
   | 'loan.renewed'
   | 'loan.due_date_changed'
+  | 'copy.counted'
+  | 'copy.added'
+  | 'report.filed'
   | 'copy.condition_changed'
   | 'copy.barcode_changed'
   | 'student.deactivated'

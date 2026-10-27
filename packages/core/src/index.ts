@@ -222,6 +222,7 @@ export {
   roleAllows,
   signIn,
   signOut,
+  staffRowId,
   updateStaffUser,
   type CreateStaffUserInput,
   type Role,
@@ -230,6 +231,18 @@ export {
   type StaffUser,
   type UpdateStaffUserInput,
 } from './domain/auth.js';
+
+// --- Who did what, and what the library makes of it ---
+export {
+  ACTION_LABELS,
+  COUNTED_ACTIONS,
+  listProgress,
+  RANKS,
+  rankFor,
+  type CountedAction,
+  type Rank,
+  type StaffProgress,
+} from './domain/progress.js';
 
 // --- Home screen ---
 export { getDashboardSummary, type DashboardSummary } from './domain/dashboard.js';

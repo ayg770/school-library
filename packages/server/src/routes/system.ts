@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   checkForUpdate,
   getDashboardSummary,
+  listProgress,
   readSettings,
   recordAudit,
   writeSetting,
@@ -72,6 +73,18 @@ export function registerSystemRoutes(app: FastifyInstance, context: AppContext):
 
     return reply.code(200).send(body);
   });
+
+  /**
+   * `GET /api/v1/progress` — what each librarian has done.
+   *
+   * Open to anyone signed in, on purpose. The volunteers are children taking
+   * turns at the same desk, and the point of the screen is that they can see
+   * each other's names next to their own; a board only an administrator can
+   * read is a board nobody is working towards.
+   */
+  app.get('/api/v1/progress', async (_request, reply) =>
+    reply.send({ items: listProgress(context.db) }),
+  );
 
   /**
    * `PATCH /api/v1/system/settings` — administrators only (see `auth.ts`).

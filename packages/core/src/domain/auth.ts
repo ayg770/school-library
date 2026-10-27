@@ -401,6 +401,27 @@ export function revokeAllSessionsFor(db: Db, userPublicId: string): void {
 }
 
 /**
+ * The row id behind a staff account's public id.
+ *
+ * Public ids are what the outside world passes around; the tables reference
+ * rows. This sits here so every part of the domain that records who did
+ * something resolves it the same way, and so an id that does not exist is
+ * refused with a sentence rather than by a foreign key.
+ */
+export function staffRowId(db: Db, publicId: string | null | undefined): number | null {
+  if (publicId === null || publicId === undefined || publicId === '') return null;
+
+  const row = db.prepare('SELECT id FROM staff_users WHERE public_id = ?').get(publicId) as
+    | { id: number }
+    | undefined;
+
+  if (row === undefined) {
+    throw new DomainError('REFERENCE_NOT_FOUND', 'המשתמש שנבחר לא נמצא.', 'userPublicId');
+  }
+  return row.id;
+}
+
+/**
  * Signs everyone out, everywhere.
  *
  * Used when the computer is left alone — Windows locked, or the program

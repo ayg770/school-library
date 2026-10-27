@@ -84,6 +84,49 @@ export interface RoundCopy extends MissingCopy {
   condition: ConditionStatus;
 }
 
+/** What a librarian has done, and the rank the library gives it. */
+export type CountedAction =
+  | 'copy.counted'
+  | 'loan.checked_out'
+  | 'loan.returned'
+  | 'copy.added'
+  | 'report.filed';
+
+export interface Rank {
+  level: number;
+  title: string;
+  emoji: string;
+  from: number;
+}
+
+export interface StaffProgress {
+  userPublicId: string;
+  username: string;
+  displayName: string;
+  counts: Record<CountedAction, number>;
+  total: number;
+  rank: Rank;
+  nextRank: Rank | null;
+  toNextRank: number;
+  lastActiveAt: string | null;
+}
+
+export const ACTION_LABELS: Record<CountedAction, string> = {
+  'copy.counted': 'ספרים שנספרו',
+  'loan.checked_out': 'השאלות',
+  'loan.returned': 'החזרות',
+  'copy.added': 'ספרים חדשים שנקלטו',
+  'report.filed': 'אי-התאמות שדווחו',
+};
+
+export const ACTION_EMOJI: Record<CountedAction, string> = {
+  'copy.counted': '📊',
+  'loan.checked_out': '📕',
+  'loan.returned': '↩️',
+  'copy.added': '📥',
+  'report.filed': '❓',
+};
+
 export interface SyncStatus {
   connected: boolean;
   connectedEmail: string | null;
@@ -492,6 +535,8 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+
+  progress: () => request<{ items: StaffProgress[] }>('/api/v1/progress'),
 
   checkForUpdate: () => request<UpdateStatus>('/api/v1/system/update'),
 

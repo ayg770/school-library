@@ -3,6 +3,8 @@ import { newPublicId } from '../ids.js';
 import { CONDITION_STATUSES, findCopyByBarcode, type BookCopy, type ConditionStatus } from './copies.js';
 import { nowIso, optionalText, requireText } from './common.js';
 import { DomainError } from './errors.js';
+import { staffRowId } from './auth.js';
+import { recordAudit } from './audit.js';
 
 /**
  * Counting the shelves — PRODUCT_SPEC.md §12.
@@ -209,20 +211,6 @@ export interface ScanInput {
   readonly userPublicId?: string | null;
 }
 
-/** The row id behind a staff account's public id. */
-function staffRowId(db: Db, publicId: string | null | undefined): number | null {
-  if (publicId === null || publicId === undefined || publicId === '') return null;
-
-  const row = db.prepare('SELECT id FROM staff_users WHERE public_id = ?').get(publicId) as
-    | { id: number }
-    | undefined;
-
-  if (row === undefined) {
-    throw new DomainError('REFERENCE_NOT_FOUND', 'המשתמש שנבחר לא נמצא.', 'userPublicId');
-  }
-  return row.id;
-}
-
 function requireCondition(value: unknown): ConditionStatus {
   if (value === undefined || value === null || value === '') return 'normal';
   if (typeof value !== 'string' || !CONDITION_STATUSES.includes(value as ConditionStatus)) {
@@ -262,13 +250,34 @@ export function recordScan(db: Db, input: ScanInput): ScanResult {
   const note = optionalText(input.conditionNote, 'conditionNote', 'הערת מצב', 500);
   const timestamp = nowIso();
 
-  db.prepare(
-    `UPDATE book_copies
-        SET verified_at = ?, verified_round_id = ?, verified_by_user_id = ?,
-            condition_status = ?, condition_note = COALESCE(?, condition_note),
-            updated_at = ?
-      WHERE barcode = ?`,
-  ).run(timestamp, roundId, userId, condition, note ?? null, timestamp, barcode);
+  const commit = db.transaction(() => {
+    db.prepare(
+      `UPDATE book_copies
+          SET verified_at = ?, verified_round_id = ?, verified_by_user_id = ?,
+              condition_status = ?, condition_note = COALESCE(?, condition_note),
+              updated_at = ?
+        WHERE barcode = ?`,
+    ).run(timestamp, roundId, userId, condition, note ?? null, timestamp, barcode);
+
+    // Who counted this book, kept beyond the round.
+    //
+    // The copy itself remembers only the latest round and the latest hands,
+    // so without this a volunteer's morning disappears the moment the next
+    // round starts. A book already counted in this round is not recorded
+    // again: the work is the books found, not the scans made, and a barcode
+    // scanned twice is one book either way.
+    if (userId !== null && !repeat) {
+      recordAudit(db, {
+        action: 'copy.counted',
+        entityType: 'copy',
+        entityId: copy.publicId,
+        userId,
+        newData: { barcode, condition, roundId },
+      });
+    }
+  });
+
+  commit();
 
   const borrower = db
     .prepare(
